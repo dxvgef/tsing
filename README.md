@@ -1,10 +1,10 @@
 # Tsing
 
-**由dxvgef/httpdispatcher项目更名为Tsing，HTTP Dispatcher项目不再维护**
+**由dxvgef/httpdispatcher项目更名而来**
 
 使用Go语言开发，基于高性能的[julienschmidt/httprouter](https://github.com/julienschmidt/httprouter)路由包实现的HTTP框架，与`net/http`标准包配合使用。
 
-没有对`httprouter`包做任何修改，仅轻量封装实现了更多功能，同时保留`net/http`标准包的API访问，高度可定制性，非常适合自行整合第三方包进行二次开发扩展功能。
+没有对`httprouter`包做任何修改，仅轻量封装实现了路由中间件、路由组等更多功能，同时保留`net/http`标准包的API访问，高度可定制性，非常适合自行整合第三方包进行二次开发扩展功能。
 
 ## 手册
 * [基本示例](https://github.com/dxvgef/tsing/wiki/%E5%9F%BA%E6%9C%AC%E7%A4%BA%E4%BE%8B)
