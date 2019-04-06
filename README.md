@@ -10,7 +10,7 @@
 * [基本示例](https://github.com/dxvgef/tsing/wiki/%E5%9F%BA%E6%9C%AC%E7%A4%BA%E4%BE%8B)
 * [事件处理 `tsing.Event`](https://github.com/dxvgef/tsing/wiki/%E4%BA%8B%E4%BB%B6%E5%A4%84%E7%90%86)
 * [路由/路由组 `tsing.Router`](https://github.com/dxvgef/tsing/wiki/%E8%B7%AF%E7%94%B1)
-* [处理器 tsing.Handler](https://github.com/dxvgef/tsing/wiki/%E5%A4%84%E7%90%86%E5%99%A8)
+* [处理器 `tsing.Handler`](https://github.com/dxvgef/tsing/wiki/%E5%A4%84%E7%90%86%E5%99%A8)
 * [会话上下文 `tsing.Context`](https://github.com/dxvgef/tsing/wiki/%E4%BC%9A%E8%AF%9D%E4%B8%8A%E4%B8%8B%E6%96%87)
 * [参数值验证及类型转换](https://github.com/dxvgef/tsing/wiki/%E5%8F%82%E6%95%B0%E5%80%BC%E9%AA%8C%E8%AF%81%E5%8F%8A%E7%B1%BB%E5%9E%8B%E8%BD%AC%E6%8D%A2)
 * [客户端输出 String/JSON](https://github.com/dxvgef/tsing/wiki/%E5%AE%A2%E6%88%B7%E7%AB%AF%E8%BE%93%E5%87%BA)
