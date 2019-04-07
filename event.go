@@ -21,7 +21,7 @@ type Event struct {
 type EventHandler func(Event)
 
 // 500(panic)事件处理
-func (d *Dispatcher) handle500(resp http.ResponseWriter, req *http.Request, err interface{}) {
+func (d *App) handle500(resp http.ResponseWriter, req *http.Request, err interface{}) {
 	if d.Event.Handler == nil {
 		return
 	}
@@ -69,7 +69,7 @@ func (d *Dispatcher) handle500(resp http.ResponseWriter, req *http.Request, err 
 }
 
 // 404事件处理
-func (d *Dispatcher) handle404(resp http.ResponseWriter, req *http.Request) {
+func (d *App) handle404(resp http.ResponseWriter, req *http.Request) {
 	if d.Event.Handler == nil {
 		return
 	}
@@ -82,7 +82,7 @@ func (d *Dispatcher) handle404(resp http.ResponseWriter, req *http.Request) {
 }
 
 // 405事件处理
-func (d *Dispatcher) handle405(resp http.ResponseWriter, req *http.Request) {
+func (d *App) handle405(resp http.ResponseWriter, req *http.Request) {
 	if d.Event.Handler == nil {
 		return
 	}
