@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/dxvgef/filter"
-	"github.com/dxvgef/filter/rule"
 	"github.com/julienschmidt/httprouter"
 )
 
@@ -20,7 +19,7 @@ type Context struct {
 	ResponseWriter http.ResponseWriter
 	routerParams   httprouter.Params // 路由参数
 	next           bool              // 继续往下执行处理器的标识
-	dispatcher     *Dispatcher
+	app            *App
 	parsed         bool // 是否已解析body
 }
 
@@ -59,17 +58,17 @@ func (ctx *Context) Redirect(code int, url string) error {
 
 // Event 在控制器return时使用，用于精准记录源码文件及行号
 func (ctx *Context) Event(err error) error {
-	if err != nil && ctx.dispatcher.Event.Handler != nil {
+	if err != nil && ctx.app.Event.Handler != nil {
 		event := Event{
 			Status:         500,
 			Message:        err,
 			ResponseWriter: ctx.ResponseWriter,
 			Request:        ctx.Request,
 		}
-		if ctx.dispatcher.Event.EnableTrace == true {
+		if ctx.app.Event.EnableTrace == true {
 			_, file, line, _ := runtime.Caller(1)
 			l := strconv.Itoa(line)
-			if ctx.dispatcher.Event.ShortCaller == true {
+			if ctx.app.Event.ShortCaller == true {
 				short := file
 				fileLen := len(file)
 				for i := fileLen - 1; i > 0; i-- {
@@ -82,7 +81,7 @@ func (ctx *Context) Event(err error) error {
 			}
 			event.Trace = append(event.Trace, file+":"+l)
 		}
-		ctx.dispatcher.Event.Handler(event)
+		ctx.app.Event.Handler(event)
 	}
 	// 不再将传入的error返回，避免再触发handle500函数
 	return nil
@@ -160,168 +159,175 @@ func (ctx *Context) FormValue(key string) ReqValue {
 }
 
 // String将参数值转为string
-func (bv ReqValue) String(rules ...rule.Rule) (string, error) {
+func (bv ReqValue) String(rules ...filter.Rule) (string, error) {
 	if bv.Error != nil {
 		return "", bv.Error
 	}
-	if err := filter.Result(bv.Value, rules...); err != nil {
-		return "", err
-	}
+	bv.Value, bv.Error = filter.Result(bv.Value, rules...)
 	return bv.Value, nil
 }
 
 // MustString将参数值转为string，如果出错或者校验失败则返回默认值
-func (bv ReqValue) MustString(def string, rules ...rule.Rule) string {
+func (bv ReqValue) MustString(def string, rules ...filter.Rule) string {
 	if bv.Error != nil {
 		return def
 	}
-	if err := filter.Result(bv.Value, rules...); err != nil {
+	if bv.Value, bv.Error = filter.Result(bv.Value, rules...); bv.Error != nil {
 		return def
 	}
 	return bv.Value
 }
 
 // Int 将参数值转为int类型
-func (bv ReqValue) Int(rules ...rule.Rule) (int, error) {
+func (bv ReqValue) Int(rules ...filter.Rule) (int, error) {
 	if bv.Error != nil {
 		return 0, bv.Error
 	}
-	if err := filter.Result(bv.Value, rules...); err != nil {
-		return 0, err
+	if bv.Value, bv.Error = filter.Result(bv.Value, rules...); bv.Error != nil {
+		return 0, bv.Error
 	}
 	value, err := strconv.Atoi(bv.Value)
 	if err != nil {
+		bv.Error = err
 		return 0, err
 	}
 	return value, nil
 }
 
 // MustInt 将参数值转为int类型，如果出错或者校验失败则返回默认值
-func (bv ReqValue) MustInt(def int, rules ...rule.Rule) int {
+func (bv ReqValue) MustInt(def int, rules ...filter.Rule) int {
 	if bv.Error != nil {
 		return def
 	}
-	if err := filter.Result(bv.Value, rules...); err != nil {
+	if bv.Value, bv.Error = filter.Result(bv.Value, rules...); bv.Error != nil {
 		return def
 	}
 	value, err := strconv.Atoi(bv.Value)
 	if err != nil {
+		bv.Error = err
 		return def
 	}
 	return value
 }
 
 // Int32 将参数值转为int32类型
-func (bv ReqValue) Int32(rules ...rule.Rule) (int32, error) {
+func (bv ReqValue) Int32(rules ...filter.Rule) (int32, error) {
 	if bv.Error != nil {
 		return 0, bv.Error
 	}
-	if err := filter.Result(bv.Value, rules...); err != nil {
-		return 0, err
+	if bv.Value, bv.Error = filter.Result(bv.Value, rules...); bv.Error != nil {
+		return 0, bv.Error
 	}
 	value, err := strconv.ParseInt(bv.Value, 10, 32)
 	if err != nil {
+		bv.Error = err
 		return 0, err
 	}
 	return int32(value), nil
 }
 
 // Int32 将参数值转为int32类型，如果出错或者校验失败则返回默认值
-func (bv ReqValue) MustInt32(def int32, rules ...rule.Rule) int32 {
+func (bv ReqValue) MustInt32(def int32, rules ...filter.Rule) int32 {
 	if bv.Error != nil {
 		return def
 	}
-	if err := filter.Result(bv.Value, rules...); err != nil {
+	if bv.Value, bv.Error = filter.Result(bv.Value, rules...); bv.Error != nil {
 		return def
 	}
 	value, err := strconv.ParseInt(bv.Value, 10, 32)
 	if err != nil {
+		bv.Error = err
 		return def
 	}
 	return int32(value)
 }
 
 // Int64 将参数值转为int64类型
-func (bv ReqValue) Int64(rules ...rule.Rule) (int64, error) {
+func (bv ReqValue) Int64(rules ...filter.Rule) (int64, error) {
 	if bv.Error != nil {
 		return 0, bv.Error
 	}
-	if err := filter.Result(bv.Value, rules...); err != nil {
-		return 0, err
+	if bv.Value, bv.Error = filter.Result(bv.Value, rules...); bv.Error != nil {
+		return 0, bv.Error
 	}
 	value, err := strconv.ParseInt(bv.Value, 10, 64)
 	if err != nil {
+		bv.Error = err
 		return 0, err
 	}
 	return value, nil
 }
 
 // MustInt64 将参数值转为int64类型，如果出错或者校验失败则返回默认值
-func (bv ReqValue) MustInt64(def int64, rules ...rule.Rule) int64 {
+func (bv ReqValue) MustInt64(def int64, rules ...filter.Rule) int64 {
 	if bv.Error != nil {
 		return def
 	}
-	if err := filter.Result(bv.Value, rules...); err != nil {
+	if bv.Value, bv.Error = filter.Result(bv.Value, rules...); bv.Error != nil {
 		return def
 	}
 	value, err := strconv.ParseInt(bv.Value, 10, 64)
 	if err != nil {
+		bv.Error = err
 		return def
 	}
 	return value
 }
 
 // Uint32 将参数值转为uint32类型
-func (bv ReqValue) Uint32(rules ...rule.Rule) (uint32, error) {
+func (bv ReqValue) Uint32(rules ...filter.Rule) (uint32, error) {
 	if bv.Error != nil {
 		return 0, bv.Error
 	}
-	if err := filter.Result(bv.Value, rules...); err != nil {
-		return 0, err
+	if bv.Value, bv.Error = filter.Result(bv.Value, rules...); bv.Error != nil {
+		return 0, bv.Error
 	}
 	value, err := strconv.ParseUint(bv.Value, 10, 32)
 	if err != nil {
+		bv.Error = err
 		return 0, err
 	}
 	return uint32(value), nil
 }
 
 // MustUint32 将参数值转为uint32类型，如果出错或者校验失败则返回默认值
-func (bv ReqValue) MustUint32(def uint32, rules ...rule.Rule) uint32 {
+func (bv ReqValue) MustUint32(def uint32, rules ...filter.Rule) uint32 {
 	if bv.Error != nil {
 		return def
 	}
-	if err := filter.Result(bv.Value, rules...); err != nil {
+	if bv.Value, bv.Error = filter.Result(bv.Value, rules...); bv.Error != nil {
 		return def
 	}
 	value, err := strconv.ParseUint(bv.Value, 10, 32)
 	if err != nil {
+		bv.Error = err
 		return def
 	}
 	return uint32(value)
 }
 
 // Uint64 将参数值转为uint64类型
-func (bv ReqValue) Uint64(rules ...rule.Rule) (uint64, error) {
+func (bv ReqValue) Uint64(rules ...filter.Rule) (uint64, error) {
 	if bv.Error != nil {
 		return 0, bv.Error
 	}
-	if err := filter.Result(bv.Value, rules...); err != nil {
-		return 0, err
+	if bv.Value, bv.Error = filter.Result(bv.Value, rules...); bv.Error != nil {
+		return 0, bv.Error
 	}
 	value, err := strconv.ParseUint(bv.Value, 10, 64)
 	if err != nil {
+		bv.Error = err
 		return 0, err
 	}
 	return value, nil
 }
 
 // MustUint64 将参数值转为uint64类型，如果出错或者校验失败则返回默认值
-func (bv ReqValue) MustUint64(def uint64, rules ...rule.Rule) uint64 {
+func (bv ReqValue) MustUint64(def uint64, rules ...filter.Rule) uint64 {
 	if bv.Error != nil {
 		return def
 	}
-	if err := filter.Result(bv.Value, rules...); err != nil {
+	if bv.Value, bv.Error = filter.Result(bv.Value, rules...); bv.Error != nil {
 		return def
 	}
 	value, err := strconv.ParseUint(bv.Value, 10, 64)
@@ -332,26 +338,27 @@ func (bv ReqValue) MustUint64(def uint64, rules ...rule.Rule) uint64 {
 }
 
 // Float32 将参数值转为float32类型
-func (bv ReqValue) Float32(rules ...rule.Rule) (float32, error) {
+func (bv ReqValue) Float32(rules ...filter.Rule) (float32, error) {
 	if bv.Error != nil {
 		return 0, bv.Error
 	}
-	if err := filter.Result(bv.Value, rules...); err != nil {
-		return 0, err
+	if bv.Value, bv.Error = filter.Result(bv.Value, rules...); bv.Error != nil {
+		return 0, bv.Error
 	}
 	value, err := strconv.ParseFloat(bv.Value, 32)
 	if err != nil {
+		bv.Error = err
 		return 0, err
 	}
 	return float32(value), nil
 }
 
 // MustFloat32 将参数值转为float32类型，如果出错或者校验失败则返回默认值
-func (bv ReqValue) MustFloat32(def float32, rules ...rule.Rule) float32 {
+func (bv ReqValue) MustFloat32(def float32, rules ...filter.Rule) float32 {
 	if bv.Error != nil {
 		return def
 	}
-	if err := filter.Result(bv.Value, rules...); err != nil {
+	if bv.Value, bv.Error = filter.Result(bv.Value, rules...); bv.Error != nil {
 		return def
 	}
 	value, err := strconv.ParseFloat(bv.Value, 32)
@@ -362,56 +369,59 @@ func (bv ReqValue) MustFloat32(def float32, rules ...rule.Rule) float32 {
 }
 
 // Float64 将参数值转为float64类型
-func (bv ReqValue) Float64(rules ...rule.Rule) (float64, error) {
+func (bv ReqValue) Float64(rules ...filter.Rule) (float64, error) {
 	if bv.Error != nil {
 		return 0, bv.Error
 	}
-	if err := filter.Result(bv.Value, rules...); err != nil {
-		return 0, err
+	if bv.Value, bv.Error = filter.Result(bv.Value, rules...); bv.Error != nil {
+		return 0, bv.Error
 	}
 	value, err := strconv.ParseFloat(bv.Value, 64)
 	if err != nil {
+		bv.Error = err
 		return 0, err
 	}
 	return value, nil
 }
 
 // MustFloat64 将参数值转为float64类型，如果出错或者校验失败则返回默认值
-func (bv ReqValue) MustFloat64(def float64, rules ...rule.Rule) float64 {
+func (bv ReqValue) MustFloat64(def float64, rules ...filter.Rule) float64 {
 	if bv.Error != nil {
 		return def
 	}
-	if err := filter.Result(bv.Value, rules...); err != nil {
+	if bv.Value, bv.Error = filter.Result(bv.Value, rules...); bv.Error != nil {
 		return def
 	}
 	value, err := strconv.ParseFloat(bv.Value, 64)
 	if err != nil {
+		bv.Error = err
 		return def
 	}
 	return value
 }
 
 // Bool 将参数值转为bool类型
-func (bv ReqValue) Bool(rules ...rule.Rule) (bool, error) {
+func (bv ReqValue) Bool(rules ...filter.Rule) (bool, error) {
 	if bv.Error != nil {
 		return false, bv.Error
 	}
-	if err := filter.Result(bv.Value, rules...); err != nil {
-		return false, err
+	if bv.Value, bv.Error = filter.Result(bv.Value, rules...); bv.Error != nil {
+		return false, bv.Error
 	}
 	value, err := strconv.ParseBool(bv.Value)
 	if err != nil {
+		bv.Error = err
 		return false, err
 	}
 	return value, nil
 }
 
 // MustBool 将参数值转为bool类型，如果出错或者校验失败则返回默认值
-func (bv ReqValue) MustBool(def bool, rules ...rule.Rule) bool {
+func (bv ReqValue) MustBool(def bool, rules ...filter.Rule) bool {
 	if bv.Error != nil {
 		return def
 	}
-	if err := filter.Result(bv.Value, rules...); err != nil {
+	if bv.Value, bv.Error = filter.Result(bv.Value, rules...); bv.Error != nil {
 		return def
 	}
 	value, err := strconv.ParseBool(bv.Value)
