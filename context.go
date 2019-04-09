@@ -18,7 +18,7 @@ type Context struct {
 	Request        *http.Request
 	ResponseWriter http.ResponseWriter
 	routerParams   httprouter.Params // 路由参数
-	next           bool              // 继续往下执行处理器的标识
+	Next           bool              // 继续执行下一个中间件或处理器
 	app            *App
 	parsed         bool // 是否已解析body
 }
@@ -30,34 +30,20 @@ type ReqValue struct {
 	Error error  // 错误
 }
 
-// Next 设置标识，用于继续执行下一个处理器
-func (ctx *Context) Next(flag bool) error {
-	ctx.next = flag
-	return nil
+// Continue 继续执行下一个中间件或处理器
+func (ctx Context) Continue() (Context, error) {
+	ctx.Next = true
+	return ctx, nil
 }
 
-// SetContextValue 在ctx里存储值，如果key存在则替换值
-func (ctx *Context) SetContextValue(key string, value interface{}) {
-	ctx.Request = ctx.Request.WithContext(context.WithValue(ctx.Request.Context(), key, value))
+// Break 中断，不继续执行下一个中间件或处理器
+func (ctx Context) Break() (Context, error) {
+	ctx.Next = false
+	return ctx, nil
 }
 
-// ContextValue 获取ctx里的值，取出后根据写入的类型自行断言
-func (ctx *Context) ContextValue(key string) interface{} {
-	return ctx.Request.Context().Value(key)
-}
-
-// Redirect 重定向
-func (ctx *Context) Redirect(code int, url string) error {
-	if code < 300 || code > 308 {
-		return errors.New("状态码只能是300-308之间的值")
-	}
-	ctx.ResponseWriter.Header().Set("Location", url)
-	ctx.ResponseWriter.WriteHeader(code)
-	return nil
-}
-
-// Event 在控制器return时使用，用于精准记录源码文件及行号
-func (ctx *Context) Event(err error) error {
+// Event 触发500事件，使用此方法是为了精准记录触发事件的源码文件及行号
+func (ctx Context) Event(err error) error {
 	if err != nil && ctx.app.Event.Handler != nil {
 		event := Event{
 			Status:         500,
@@ -87,8 +73,34 @@ func (ctx *Context) Event(err error) error {
 	return nil
 }
 
+// BreakAndError 中断并且抛出错误，不继续执行下一个中间件或处理器
+func (ctx Context) BreakAndError(err error) (Context, error) {
+	ctx.Next = false
+	return ctx, err
+}
+
+// SetContextValue 在ctx里存储值，如果key存在则替换值
+func (ctx Context) SetContextValue(key string, value interface{}) {
+	ctx.Request = ctx.Request.WithContext(context.WithValue(ctx.Request.Context(), key, value))
+}
+
+// ContextValue 获取ctx里的值，取出后根据写入的类型自行断言
+func (ctx Context) ContextValue(key string) interface{} {
+	return ctx.Request.Context().Value(key)
+}
+
+// Redirect 重定向
+func (ctx Context) Redirect(code int, url string) error {
+	if code < 300 || code > 308 {
+		return errors.New("状态码只能是300-308之间的值")
+	}
+	ctx.ResponseWriter.Header().Set("Location", url)
+	ctx.ResponseWriter.WriteHeader(code)
+	return nil
+}
+
 // RealIP 获得客户端真实IP
-func (ctx *Context) RealIP() string {
+func (ctx Context) RealIP() string {
 	ra := ctx.Request.RemoteAddr
 	if ip := ctx.Request.Header.Get("X-Forwarded-For"); ip != "" {
 		ra = strings.Split(ip, ", ")[0]
@@ -101,7 +113,7 @@ func (ctx *Context) RealIP() string {
 }
 
 // 解析body数据
-func (ctx *Context) parseBody() error {
+func (ctx Context) parseBody() error {
 	// 判断是否已经解析过body
 	if ctx.parsed == true {
 		return nil
@@ -121,7 +133,7 @@ func (ctx *Context) parseBody() error {
 }
 
 // RouteValue 获取路由参数值
-func (ctx *Context) RouteValue(key string) ReqValue {
+func (ctx Context) RouteValue(key string) ReqValue {
 	return ReqValue{
 		Key:   key,
 		Value: ctx.routerParams.ByName(key),
@@ -129,7 +141,7 @@ func (ctx *Context) RouteValue(key string) ReqValue {
 }
 
 // QueryValue 获取某个GET参数值
-func (ctx *Context) QueryValue(key string) ReqValue {
+func (ctx Context) QueryValue(key string) ReqValue {
 	err := ctx.parseBody()
 	if err != nil {
 		return ReqValue{
@@ -144,7 +156,7 @@ func (ctx *Context) QueryValue(key string) ReqValue {
 }
 
 // FormValue 获取某个POST参数值
-func (ctx *Context) FormValue(key string) ReqValue {
+func (ctx Context) FormValue(key string) ReqValue {
 	err := ctx.parseBody()
 	if err != nil {
 		return ReqValue{
