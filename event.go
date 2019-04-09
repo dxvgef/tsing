@@ -20,8 +20,8 @@ type Event struct {
 // EventHandler 事件处理器类型
 type EventHandler func(Event)
 
-// 500(panic)事件处理
-func (d *App) handle500(resp http.ResponseWriter, req *http.Request, err interface{}) {
+// 500(panic)事件
+func (d *App) event500(resp http.ResponseWriter, req *http.Request, err interface{}) {
 	if d.Event.Handler == nil {
 		return
 	}
@@ -45,7 +45,7 @@ func (d *App) handle500(resp http.ResponseWriter, req *http.Request, err interfa
 			// 排除trace中的标准包信息
 			if strings.HasPrefix(file, goRoot) == false {
 				/*
-				   if d.Event.ShortCaller == true {
+				   if d.Error.ShortCaller == true {
 				   	short := file
 				   	fileLen := len(file)
 				   	for i := fileLen - 1; i > 0; i-- {
@@ -69,7 +69,7 @@ func (d *App) handle500(resp http.ResponseWriter, req *http.Request, err interfa
 }
 
 // 404事件处理
-func (d *App) handle404(resp http.ResponseWriter, req *http.Request) {
+func (d *App) event404(resp http.ResponseWriter, req *http.Request) {
 	if d.Event.Handler == nil {
 		return
 	}
@@ -82,7 +82,7 @@ func (d *App) handle404(resp http.ResponseWriter, req *http.Request) {
 }
 
 // 405事件处理
-func (d *App) handle405(resp http.ResponseWriter, req *http.Request) {
+func (d *App) event405(resp http.ResponseWriter, req *http.Request) {
 	if d.Event.Handler == nil {
 		return
 	}
