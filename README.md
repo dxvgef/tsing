@@ -1,16 +1,15 @@
 # Tsing
-
 **由dxvgef/httpdispatcher项目更名而来**
 
-使用Go语言开发，基于高性能的[julienschmidt/httprouter](https://github.com/julienschmidt/httprouter)路由包实现的HTTP框架，与`net/http`标准包配合使用。
+使用Go语言开发，基于高性能的[julienschmidt/httprouter](https://github.com/julienschmidt/httprouter)路由包实现的HTTP调度器，与`net/http`标准包配合使用。
 
-没有对`httprouter`包做任何修改，仅轻量封装实现了路由中间件、路由组等更多功能，同时保留`net/http`标准包的API访问，高度可定制性，非常适合自行整合第三方包进行二次开发扩展功能。
+没有对`httprouter`包做任何修改，仅轻量封装实现了更多功能，同时保留`net/http`标准包的API访问，高度可定制性，非常适合自行整合第三方包进行二次开发扩展功能。
 
-## 手册
 * [基本示例](https://github.com/dxvgef/tsing/wiki/%E5%9F%BA%E6%9C%AC%E7%A4%BA%E4%BE%8B)
-* [事件处理 `tsing.Event`](https://github.com/dxvgef/tsing/wiki/%E4%BA%8B%E4%BB%B6%E5%A4%84%E7%90%86)
-* [路由/路由组 `tsing.Router`](https://github.com/dxvgef/tsing/wiki/%E8%B7%AF%E7%94%B1)
-* [处理器 `tsing.Handler`](https://github.com/dxvgef/tsing/wiki/%E5%A4%84%E7%90%86%E5%99%A8)
+* [路由和路由组 `tsing.Router`](https://github.com/dxvgef/tsing/wiki/%E8%B7%AF%E7%94%B1%E5%92%8C%E8%B7%AF%E7%94%B1%E7%BB%84)
+* [路由处理器 `tsing.Handler`](https://github.com/dxvgef/tsing/wiki/%E8%B7%AF%E7%94%B1%E5%A4%84%E7%90%86%E5%99%A8)
+* [中间件处理器 `tsing.MiddlewareHandler`](https://github.com/dxvgef/tsing/wiki/%E4%B8%AD%E9%97%B4%E4%BB%B6%E5%A4%84%E7%90%86%E5%99%A8)
+* [事件处理器 `tsing.EventHandler`](https://github.com/dxvgef/tsing/wiki/%E4%BA%8B%E4%BB%B6%E5%A4%84%E7%90%86%E5%99%A8)
 * [会话上下文 `tsing.Context`](https://github.com/dxvgef/tsing/wiki/%E4%BC%9A%E8%AF%9D%E4%B8%8A%E4%B8%8B%E6%96%87)
 * [参数值验证及类型转换](https://github.com/dxvgef/tsing/wiki/%E5%8F%82%E6%95%B0%E5%80%BC%E9%AA%8C%E8%AF%81%E5%8F%8A%E7%B1%BB%E5%9E%8B%E8%BD%AC%E6%8D%A2)
 * [客户端输出 String/JSON](https://github.com/dxvgef/tsing/wiki/%E5%AE%A2%E6%88%B7%E7%AB%AF%E8%BE%93%E5%87%BA)
