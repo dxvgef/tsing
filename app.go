@@ -24,9 +24,9 @@ type App struct {
 func New() *App {
 	var app App
 	app.httpRouter = httprouter.New()
-	app.httpRouter.PanicHandler = app.handle500
-	app.httpRouter.NotFound = http.HandlerFunc(app.handle404)
-	app.httpRouter.MethodNotAllowed = http.HandlerFunc(app.handle405)
+	app.httpRouter.PanicHandler = app.event500
+	app.httpRouter.NotFound = http.HandlerFunc(app.event404)
+	app.httpRouter.MethodNotAllowed = http.HandlerFunc(app.event405)
 	app.Router = RouterGroup{
 		app: &app,
 	}
