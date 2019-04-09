@@ -36,10 +36,10 @@ func (ctx Context) Continue() (Context, error) {
 	return ctx, nil
 }
 
-// Break 中断，不继续执行下一个中间件或处理器
-func (ctx Context) Break() (Context, error) {
+// Break 中断，不继续执行下一个中间件或处理器，如果err不为nil，则同时抛出500事件
+func (ctx Context) Break(err error) (Context, error) {
 	ctx.Next = false
-	return ctx, nil
+	return ctx, err
 }
 
 // Event 触发500事件，使用此方法是为了精准记录触发事件的源码文件及行号
@@ -71,12 +71,6 @@ func (ctx Context) Event(err error) error {
 	}
 	// 不再将传入的error返回，避免再触发handle500函数
 	return nil
-}
-
-// BreakAndError 中断并且抛出错误，不继续执行下一个中间件或处理器
-func (ctx Context) BreakAndError(err error) (Context, error) {
-	ctx.Next = false
-	return ctx, err
 }
 
 // SetContextValue 在ctx里存储值，如果key存在则替换值
