@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net"
 	"net/http"
+	"net/url"
 	"runtime"
 	"strconv"
 	"strings"
@@ -74,7 +75,7 @@ func (ctx Context) Event(err error) error {
 }
 
 // SetContextValue 在ctx里存储值，如果key存在则替换值
-func (ctx Context) SetContextValue(key string, value interface{}) {
+func (ctx *Context) SetContextValue(key string, value interface{}) {
 	ctx.Request = ctx.Request.WithContext(context.WithValue(ctx.Request.Context(), key, value))
 }
 
@@ -134,19 +135,41 @@ func (ctx Context) RouteValue(key string) ReqValue {
 	}
 }
 
+// RouteValues 获取所有路由参数值
+func (ctx Context) RouteValues() []httprouter.Param {
+	return ctx.routerParams
+}
+
+// RawRouteValue 获取某个路由参数值的string类型
+func (ctx Context) RawRouteValue(key string) string {
+	return ctx.routerParams.ByName(key)
+}
+
+// QueryValues 获取所有GET参数值
+func (ctx Context) QueryValues() url.Values {
+	return ctx.Request.URL.Query()
+}
+
 // QueryValue 获取某个GET参数值
 func (ctx Context) QueryValue(key string) ReqValue {
-	err := ctx.parseBody()
-	if err != nil {
+	if len(ctx.Request.URL.Query()[key]) == 0 {
 		return ReqValue{
 			Key:   key,
-			Error: err,
+			Error: errors.New("GET参数" + key + "不存在"),
 		}
 	}
 	return ReqValue{
 		Key:   key,
-		Value: ctx.Request.Form.Get(key),
+		Value: ctx.Request.URL.Query()[key][0],
 	}
+}
+
+// RawQueryValue 获取某个GET参数值的string类型
+func (ctx Context) RawQueryValue(key string) string {
+	if len(ctx.Request.URL.Query()[key]) == 0 {
+		return ""
+	}
+	return ctx.Request.URL.Query()[key][0]
 }
 
 // FormValue 获取某个POST参数值
@@ -158,10 +181,48 @@ func (ctx Context) FormValue(key string) ReqValue {
 			Error: err,
 		}
 	}
+	vs := ctx.Request.Form[key]
+	if len(vs) == 0 {
+		return ReqValue{
+			Key:   key,
+			Error: errors.New(ctx.Request.Method + "参数" + key + "不存在"),
+		}
+	}
 	return ReqValue{
 		Key:   key,
-		Value: ctx.Request.FormValue(key),
+		Value: ctx.Request.Form[key][0],
 	}
+}
+
+// PostValues 获取所有POST参数值
+func (ctx Context) PostValues() url.Values {
+	err := ctx.parseBody()
+	if err != nil {
+		return url.Values{}
+	}
+	return ctx.Request.PostForm
+}
+
+// FormValues 获取所有GET/POST参数值
+func (ctx Context) FormValues() url.Values {
+	err := ctx.parseBody()
+	if err != nil {
+		return url.Values{}
+	}
+	return ctx.Request.Form
+}
+
+// RawFormValue 获取某个POST参数值的string类型
+func (ctx Context) RawFormValue(key string) string {
+	err := ctx.parseBody()
+	if err != nil {
+		return ""
+	}
+	vs := ctx.Request.Form[key]
+	if len(vs) == 0 {
+		return ""
+	}
+	return ctx.Request.Form[key][0]
 }
 
 // String将参数值转为string
@@ -169,7 +230,7 @@ func (bv ReqValue) String(rules ...filter.Rule) (string, error) {
 	if bv.Error != nil {
 		return "", bv.Error
 	}
-	bv.Value, bv.Error = filter.Result(bv.Value, rules...)
+	bv.Value, bv.Error = filter.String(bv.Value, rules...)
 	return bv.Value, nil
 }
 
@@ -178,7 +239,7 @@ func (bv ReqValue) MustString(def string, rules ...filter.Rule) string {
 	if bv.Error != nil {
 		return def
 	}
-	if bv.Value, bv.Error = filter.Result(bv.Value, rules...); bv.Error != nil {
+	if bv.Value, bv.Error = filter.String(bv.Value, rules...); bv.Error != nil {
 		return def
 	}
 	return bv.Value
@@ -189,7 +250,7 @@ func (bv ReqValue) Int(rules ...filter.Rule) (int, error) {
 	if bv.Error != nil {
 		return 0, bv.Error
 	}
-	if bv.Value, bv.Error = filter.Result(bv.Value, rules...); bv.Error != nil {
+	if bv.Value, bv.Error = filter.String(bv.Value, rules...); bv.Error != nil {
 		return 0, bv.Error
 	}
 	value, err := strconv.Atoi(bv.Value)
@@ -205,7 +266,7 @@ func (bv ReqValue) MustInt(def int, rules ...filter.Rule) int {
 	if bv.Error != nil {
 		return def
 	}
-	if bv.Value, bv.Error = filter.Result(bv.Value, rules...); bv.Error != nil {
+	if bv.Value, bv.Error = filter.String(bv.Value, rules...); bv.Error != nil {
 		return def
 	}
 	value, err := strconv.Atoi(bv.Value)
@@ -221,7 +282,7 @@ func (bv ReqValue) Int32(rules ...filter.Rule) (int32, error) {
 	if bv.Error != nil {
 		return 0, bv.Error
 	}
-	if bv.Value, bv.Error = filter.Result(bv.Value, rules...); bv.Error != nil {
+	if bv.Value, bv.Error = filter.String(bv.Value, rules...); bv.Error != nil {
 		return 0, bv.Error
 	}
 	value, err := strconv.ParseInt(bv.Value, 10, 32)
@@ -237,7 +298,7 @@ func (bv ReqValue) MustInt32(def int32, rules ...filter.Rule) int32 {
 	if bv.Error != nil {
 		return def
 	}
-	if bv.Value, bv.Error = filter.Result(bv.Value, rules...); bv.Error != nil {
+	if bv.Value, bv.Error = filter.String(bv.Value, rules...); bv.Error != nil {
 		return def
 	}
 	value, err := strconv.ParseInt(bv.Value, 10, 32)
@@ -253,7 +314,7 @@ func (bv ReqValue) Int64(rules ...filter.Rule) (int64, error) {
 	if bv.Error != nil {
 		return 0, bv.Error
 	}
-	if bv.Value, bv.Error = filter.Result(bv.Value, rules...); bv.Error != nil {
+	if bv.Value, bv.Error = filter.String(bv.Value, rules...); bv.Error != nil {
 		return 0, bv.Error
 	}
 	value, err := strconv.ParseInt(bv.Value, 10, 64)
@@ -269,7 +330,7 @@ func (bv ReqValue) MustInt64(def int64, rules ...filter.Rule) int64 {
 	if bv.Error != nil {
 		return def
 	}
-	if bv.Value, bv.Error = filter.Result(bv.Value, rules...); bv.Error != nil {
+	if bv.Value, bv.Error = filter.String(bv.Value, rules...); bv.Error != nil {
 		return def
 	}
 	value, err := strconv.ParseInt(bv.Value, 10, 64)
@@ -285,7 +346,7 @@ func (bv ReqValue) Uint32(rules ...filter.Rule) (uint32, error) {
 	if bv.Error != nil {
 		return 0, bv.Error
 	}
-	if bv.Value, bv.Error = filter.Result(bv.Value, rules...); bv.Error != nil {
+	if bv.Value, bv.Error = filter.String(bv.Value, rules...); bv.Error != nil {
 		return 0, bv.Error
 	}
 	value, err := strconv.ParseUint(bv.Value, 10, 32)
@@ -301,7 +362,7 @@ func (bv ReqValue) MustUint32(def uint32, rules ...filter.Rule) uint32 {
 	if bv.Error != nil {
 		return def
 	}
-	if bv.Value, bv.Error = filter.Result(bv.Value, rules...); bv.Error != nil {
+	if bv.Value, bv.Error = filter.String(bv.Value, rules...); bv.Error != nil {
 		return def
 	}
 	value, err := strconv.ParseUint(bv.Value, 10, 32)
@@ -317,7 +378,7 @@ func (bv ReqValue) Uint64(rules ...filter.Rule) (uint64, error) {
 	if bv.Error != nil {
 		return 0, bv.Error
 	}
-	if bv.Value, bv.Error = filter.Result(bv.Value, rules...); bv.Error != nil {
+	if bv.Value, bv.Error = filter.String(bv.Value, rules...); bv.Error != nil {
 		return 0, bv.Error
 	}
 	value, err := strconv.ParseUint(bv.Value, 10, 64)
@@ -333,7 +394,7 @@ func (bv ReqValue) MustUint64(def uint64, rules ...filter.Rule) uint64 {
 	if bv.Error != nil {
 		return def
 	}
-	if bv.Value, bv.Error = filter.Result(bv.Value, rules...); bv.Error != nil {
+	if bv.Value, bv.Error = filter.String(bv.Value, rules...); bv.Error != nil {
 		return def
 	}
 	value, err := strconv.ParseUint(bv.Value, 10, 64)
@@ -348,7 +409,7 @@ func (bv ReqValue) Float32(rules ...filter.Rule) (float32, error) {
 	if bv.Error != nil {
 		return 0, bv.Error
 	}
-	if bv.Value, bv.Error = filter.Result(bv.Value, rules...); bv.Error != nil {
+	if bv.Value, bv.Error = filter.String(bv.Value, rules...); bv.Error != nil {
 		return 0, bv.Error
 	}
 	value, err := strconv.ParseFloat(bv.Value, 32)
@@ -364,7 +425,7 @@ func (bv ReqValue) MustFloat32(def float32, rules ...filter.Rule) float32 {
 	if bv.Error != nil {
 		return def
 	}
-	if bv.Value, bv.Error = filter.Result(bv.Value, rules...); bv.Error != nil {
+	if bv.Value, bv.Error = filter.String(bv.Value, rules...); bv.Error != nil {
 		return def
 	}
 	value, err := strconv.ParseFloat(bv.Value, 32)
@@ -379,7 +440,7 @@ func (bv ReqValue) Float64(rules ...filter.Rule) (float64, error) {
 	if bv.Error != nil {
 		return 0, bv.Error
 	}
-	if bv.Value, bv.Error = filter.Result(bv.Value, rules...); bv.Error != nil {
+	if bv.Value, bv.Error = filter.String(bv.Value, rules...); bv.Error != nil {
 		return 0, bv.Error
 	}
 	value, err := strconv.ParseFloat(bv.Value, 64)
@@ -395,7 +456,7 @@ func (bv ReqValue) MustFloat64(def float64, rules ...filter.Rule) float64 {
 	if bv.Error != nil {
 		return def
 	}
-	if bv.Value, bv.Error = filter.Result(bv.Value, rules...); bv.Error != nil {
+	if bv.Value, bv.Error = filter.String(bv.Value, rules...); bv.Error != nil {
 		return def
 	}
 	value, err := strconv.ParseFloat(bv.Value, 64)
@@ -411,7 +472,7 @@ func (bv ReqValue) Bool(rules ...filter.Rule) (bool, error) {
 	if bv.Error != nil {
 		return false, bv.Error
 	}
-	if bv.Value, bv.Error = filter.Result(bv.Value, rules...); bv.Error != nil {
+	if bv.Value, bv.Error = filter.String(bv.Value, rules...); bv.Error != nil {
 		return false, bv.Error
 	}
 	value, err := strconv.ParseBool(bv.Value)
@@ -427,7 +488,7 @@ func (bv ReqValue) MustBool(def bool, rules ...filter.Rule) bool {
 	if bv.Error != nil {
 		return def
 	}
-	if bv.Value, bv.Error = filter.Result(bv.Value, rules...); bv.Error != nil {
+	if bv.Value, bv.Error = filter.String(bv.Value, rules...); bv.Error != nil {
 		return def
 	}
 	value, err := strconv.ParseBool(bv.Value)
