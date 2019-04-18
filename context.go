@@ -129,9 +129,17 @@ func (ctx Context) parseBody() error {
 
 // RouteValue 获取路由参数值
 func (ctx Context) RouteValue(key string) ReqValue {
+	for i := range ctx.routerParams {
+		if ctx.routerParams[i].Key == key {
+			return ReqValue{
+				Key:   key,
+				Value: ctx.routerParams[i].Value,
+			}
+		}
+	}
 	return ReqValue{
+		Error: errors.New("路由参数" + key + "不存在"),
 		Key:   key,
-		Value: ctx.routerParams.ByName(key),
 	}
 }
 
