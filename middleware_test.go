@@ -43,5 +43,6 @@ func TestMiddleware(t *testing.T) {
 		log.Println(err.Error())
 		return
 	}
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	app.ServeHTTP(httptest.NewRecorder(), r)
 }
