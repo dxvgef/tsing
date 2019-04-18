@@ -231,7 +231,7 @@ func (bv ReqValue) String(rules ...filter.Rule) (string, error) {
 		return "", bv.Error
 	}
 	bv.Value, bv.Error = filter.String(bv.Value, rules...)
-	return bv.Value, nil
+	return bv.Value, bv.Error
 }
 
 // MustString将参数值转为string，如果出错或者校验失败则返回默认值
@@ -258,7 +258,7 @@ func (bv ReqValue) Int(rules ...filter.Rule) (int, error) {
 		bv.Error = err
 		return 0, err
 	}
-	return value, nil
+	return value, err
 }
 
 // MustInt 将参数值转为int类型，如果出错或者校验失败则返回默认值
@@ -290,7 +290,7 @@ func (bv ReqValue) Int32(rules ...filter.Rule) (int32, error) {
 		bv.Error = err
 		return 0, err
 	}
-	return int32(value), nil
+	return int32(value), err
 }
 
 // Int32 将参数值转为int32类型，如果出错或者校验失败则返回默认值
@@ -322,7 +322,7 @@ func (bv ReqValue) Int64(rules ...filter.Rule) (int64, error) {
 		bv.Error = err
 		return 0, err
 	}
-	return value, nil
+	return value, err
 }
 
 // MustInt64 将参数值转为int64类型，如果出错或者校验失败则返回默认值
@@ -354,7 +354,7 @@ func (bv ReqValue) Uint32(rules ...filter.Rule) (uint32, error) {
 		bv.Error = err
 		return 0, err
 	}
-	return uint32(value), nil
+	return uint32(value), err
 }
 
 // MustUint32 将参数值转为uint32类型，如果出错或者校验失败则返回默认值
@@ -386,7 +386,7 @@ func (bv ReqValue) Uint64(rules ...filter.Rule) (uint64, error) {
 		bv.Error = err
 		return 0, err
 	}
-	return value, nil
+	return value, err
 }
 
 // MustUint64 将参数值转为uint64类型，如果出错或者校验失败则返回默认值
@@ -417,7 +417,7 @@ func (bv ReqValue) Float32(rules ...filter.Rule) (float32, error) {
 		bv.Error = err
 		return 0, err
 	}
-	return float32(value), nil
+	return float32(value), err
 }
 
 // MustFloat32 将参数值转为float32类型，如果出错或者校验失败则返回默认值
@@ -448,7 +448,7 @@ func (bv ReqValue) Float64(rules ...filter.Rule) (float64, error) {
 		bv.Error = err
 		return 0, err
 	}
-	return value, nil
+	return value, err
 }
 
 // MustFloat64 将参数值转为float64类型，如果出错或者校验失败则返回默认值
@@ -480,7 +480,7 @@ func (bv ReqValue) Bool(rules ...filter.Rule) (bool, error) {
 		bv.Error = err
 		return false, err
 	}
-	return value, nil
+	return value, err
 }
 
 // MustBool 将参数值转为bool类型，如果出错或者校验失败则返回默认值
