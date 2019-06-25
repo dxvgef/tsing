@@ -67,7 +67,7 @@ func TestRoute(t *testing.T) {
 		return nil
 	})
 
-	r, err := http.NewRequest("GET", "/abc/def", nil)
+	r, err := http.NewRequest("GET", "/1/2", nil)
 	if err != nil {
 		t.Error(err.Error())
 		return

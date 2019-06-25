@@ -12,7 +12,7 @@ type App struct {
 	Event struct {
 		Handler     EventHandler // 事件处理器，如果未传值则认为不记录事件
 		EnableTrace bool         // 启用500事件的跟踪(影响性能)
-		ShortCaller bool         // 缩短事件触发的源码文件名(仅记录源码文件名，仅对ctx.Return触发的500事件有效)s
+		ShortCaller bool         // 缩短事件触发的源码文件名(仅记录源码文件名，仅对ctx.Event触发的500事件有效)s
 	}
 	// 路由器
 	Router RouterGroup
