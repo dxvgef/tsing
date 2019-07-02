@@ -7,8 +7,6 @@ import (
 	"net/url"
 	"strings"
 	"testing"
-
-	"github.com/dxvgef/filter/rule"
 )
 
 func TestGET(t *testing.T) {
@@ -19,7 +17,7 @@ func TestGET(t *testing.T) {
 		log.Println(event.Message)
 	}
 	app.Router.GET("/", func(ctx Context) error {
-		t.Error(ctx.QueryValue("id").Int(rule.Int))
+		t.Error(ctx.QueryValue("id").Int())
 		return nil
 	})
 
@@ -39,7 +37,7 @@ func TestPOST(t *testing.T) {
 		log.Println(event.Message)
 	}
 	app.Router.POST("/", func(ctx Context) error {
-		t.Error(ctx.FormValue("id").Int(rule.Int))
+		t.Error(ctx.FormValue("id").Int())
 		return nil
 	})
 
@@ -62,8 +60,8 @@ func TestRoute(t *testing.T) {
 		log.Println(event.Message)
 	}
 	app.Router.GET("/:classID/:id", func(ctx Context) error {
-		t.Error(ctx.RouteValue("classID").Int(rule.Int))
-		t.Error(ctx.RouteValue("id").Int(rule.Int))
+		t.Error(ctx.RouteValue("classID").Int())
+		t.Error(ctx.RouteValue("id").Int())
 		return nil
 	})
 

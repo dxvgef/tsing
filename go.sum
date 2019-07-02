@@ -1,4 +1,2 @@
-github.com/dxvgef/filter v0.0.0-20190702000356-ecbacc89f0eb h1:ZaejF6CCB4pCTJHImtjak1YEzmt/rqUOCKhkO7A0vsI=
-github.com/dxvgef/filter v0.0.0-20190702000356-ecbacc89f0eb/go.mod h1:mkBsz8jewjNYpbcAOR55gtXbqv4K2Kczz5jirlgMKcc=
 github.com/julienschmidt/httprouter v1.2.0 h1:TDTW5Yz1mjftljbcKqRcrYhd4XeOoI98t+9HbQbYf7g=
 github.com/julienschmidt/httprouter v1.2.0/go.mod h1:SYymIcj16QtmaHHD7aYtjjsJG7VTCxuUUipMqKk8s4w=
