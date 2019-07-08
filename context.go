@@ -23,13 +23,6 @@ type Context struct {
 	parsed         bool // 是否已解析body
 }
 
-// ReqValue 请求参数值
-type ReqValue struct {
-	Key   string // 参数名
-	Value string // 参数值
-	Error error  // 错误
-}
-
 // Continue 继续执行下一个中间件或处理器
 func (ctx Context) Continue() (Context, error) {
 	ctx.Next = true
@@ -126,25 +119,19 @@ func (ctx Context) parseBody() error {
 	return nil
 }
 
-// RouteValue 获取路由参数值
-func (ctx Context) RouteValue(key string) ReqValue {
-	for i := range ctx.routerParams {
-		if ctx.routerParams[i].Key == key {
-			return ReqValue{
-				Key:   key,
-				Value: ctx.routerParams[i].Value,
-			}
-		}
-	}
-	return ReqValue{
-		Error: errors.New("路由参数" + key + "不存在"),
-		Key:   key,
-	}
-}
-
 // RouteValues 获取所有路由参数值
 func (ctx Context) RouteValues() []httprouter.Param {
 	return ctx.routerParams
+}
+
+// RouteValue 获取路由参数值
+func (ctx Context) RouteValue(key string) (string, error) {
+	for i := range ctx.routerParams {
+		if ctx.routerParams[i].Key == key {
+			return ctx.routerParams[i].Value, nil
+		}
+	}
+	return "", errors.New("路由参数" + key + "不存在")
 }
 
 // RawRouteValue 获取某个路由参数值的string类型
@@ -158,17 +145,11 @@ func (ctx Context) QueryValues() url.Values {
 }
 
 // QueryValue 获取某个GET参数值
-func (ctx Context) QueryValue(key string) ReqValue {
+func (ctx Context) QueryValue(key string) (string, error) {
 	if len(ctx.Request.URL.Query()[key]) == 0 {
-		return ReqValue{
-			Key:   key,
-			Error: errors.New("GET参数" + key + "不存在"),
-		}
+		return "", errors.New("GET参数" + key + "不存在")
 	}
-	return ReqValue{
-		Key:   key,
-		Value: ctx.Request.URL.Query()[key][0],
-	}
+	return ctx.Request.URL.Query()[key][0], nil
 }
 
 // RawQueryValue 获取某个GET参数值的string类型
@@ -177,28 +158,6 @@ func (ctx Context) RawQueryValue(key string) string {
 		return ""
 	}
 	return ctx.Request.URL.Query()[key][0]
-}
-
-// FormValue 获取某个POST参数值
-func (ctx Context) FormValue(key string) ReqValue {
-	err := ctx.parseBody()
-	if err != nil {
-		return ReqValue{
-			Key:   key,
-			Error: err,
-		}
-	}
-	vs := ctx.Request.Form[key]
-	if len(vs) == 0 {
-		return ReqValue{
-			Key:   key,
-			Error: errors.New(ctx.Request.Method + "参数" + key + "不存在"),
-		}
-	}
-	return ReqValue{
-		Key:   key,
-		Value: ctx.Request.Form[key][0],
-	}
 }
 
 // PostValues 获取所有POST参数值
@@ -210,13 +169,17 @@ func (ctx Context) PostValues() url.Values {
 	return ctx.Request.PostForm
 }
 
-// FormValues 获取所有GET/POST参数值
-func (ctx Context) FormValues() url.Values {
+// FormValue 获取某个POST参数值
+func (ctx Context) FormValue(key string) (string, error) {
 	err := ctx.parseBody()
 	if err != nil {
-		return url.Values{}
+		return "", err
 	}
-	return ctx.Request.Form
+	vs := ctx.Request.Form[key]
+	if len(vs) == 0 {
+		return "", errors.New(ctx.Request.Method + "参数" + key + "不存在")
+	}
+	return ctx.Request.Form[key][0], nil
 }
 
 // RawFormValue 获取某个POST参数值的string类型
@@ -230,225 +193,4 @@ func (ctx Context) RawFormValue(key string) string {
 		return ""
 	}
 	return ctx.Request.Form[key][0]
-}
-
-// String将参数值转为string
-func (bv ReqValue) String() (string, error) {
-	if bv.Error != nil {
-		return "", bv.Error
-	}
-	return bv.Value, bv.Error
-}
-
-// MustString将参数值转为string，如果出错或者校验失败则返回默认值
-func (bv ReqValue) MustString(def string) string {
-	if bv.Error != nil {
-		return def
-	}
-	return bv.Value
-}
-
-// Int 将参数值转为int类型
-func (bv ReqValue) Int() (int, error) {
-	if bv.Error != nil {
-		return 0, bv.Error
-	}
-	value, err := strconv.Atoi(bv.Value)
-	if err != nil {
-		bv.Error = err
-		return 0, err
-	}
-	return value, err
-}
-
-// MustInt 将参数值转为int类型，如果出错或者校验失败则返回默认值
-func (bv ReqValue) MustInt(def int) int {
-	if bv.Error != nil {
-		return def
-	}
-	value, err := strconv.Atoi(bv.Value)
-	if err != nil {
-		bv.Error = err
-		return def
-	}
-	return value
-}
-
-// Int32 将参数值转为int32类型
-func (bv ReqValue) Int32() (int32, error) {
-	if bv.Error != nil {
-		return 0, bv.Error
-	}
-	value, err := strconv.ParseInt(bv.Value, 10, 32)
-	if err != nil {
-		bv.Error = err
-		return 0, err
-	}
-	return int32(value), err
-}
-
-// Int32 将参数值转为int32类型，如果出错或者校验失败则返回默认值
-func (bv ReqValue) MustInt32(def int32) int32 {
-	if bv.Error != nil {
-		return def
-	}
-	value, err := strconv.ParseInt(bv.Value, 10, 32)
-	if err != nil {
-		bv.Error = err
-		return def
-	}
-	return int32(value)
-}
-
-// Int64 将参数值转为int64类型
-func (bv ReqValue) Int64() (int64, error) {
-	if bv.Error != nil {
-		return 0, bv.Error
-	}
-	value, err := strconv.ParseInt(bv.Value, 10, 64)
-	if err != nil {
-		bv.Error = err
-		return 0, err
-	}
-	return value, err
-}
-
-// MustInt64 将参数值转为int64类型，如果出错或者校验失败则返回默认值
-func (bv ReqValue) MustInt64(def int64) int64 {
-	if bv.Error != nil {
-		return def
-	}
-	value, err := strconv.ParseInt(bv.Value, 10, 64)
-	if err != nil {
-		bv.Error = err
-		return def
-	}
-	return value
-}
-
-// Uint32 将参数值转为uint32类型
-func (bv ReqValue) Uint32() (uint32, error) {
-	if bv.Error != nil {
-		return 0, bv.Error
-	}
-	value, err := strconv.ParseUint(bv.Value, 10, 32)
-	if err != nil {
-		bv.Error = err
-		return 0, err
-	}
-	return uint32(value), err
-}
-
-// MustUint32 将参数值转为uint32类型，如果出错或者校验失败则返回默认值
-func (bv ReqValue) MustUint32(def uint32) uint32 {
-	if bv.Error != nil {
-		return def
-	}
-	value, err := strconv.ParseUint(bv.Value, 10, 32)
-	if err != nil {
-		bv.Error = err
-		return def
-	}
-	return uint32(value)
-}
-
-// Uint64 将参数值转为uint64类型
-func (bv ReqValue) Uint64() (uint64, error) {
-	if bv.Error != nil {
-		return 0, bv.Error
-	}
-	value, err := strconv.ParseUint(bv.Value, 10, 64)
-	if err != nil {
-		bv.Error = err
-		return 0, err
-	}
-	return value, err
-}
-
-// MustUint64 将参数值转为uint64类型，如果出错或者校验失败则返回默认值
-func (bv ReqValue) MustUint64(def uint64) uint64 {
-	if bv.Error != nil {
-		return def
-	}
-	value, err := strconv.ParseUint(bv.Value, 10, 64)
-	if err != nil {
-		return def
-	}
-	return value
-}
-
-// Float32 将参数值转为float32类型
-func (bv ReqValue) Float32() (float32, error) {
-	if bv.Error != nil {
-		return 0, bv.Error
-	}
-	value, err := strconv.ParseFloat(bv.Value, 32)
-	if err != nil {
-		bv.Error = err
-		return 0, err
-	}
-	return float32(value), err
-}
-
-// MustFloat32 将参数值转为float32类型，如果出错或者校验失败则返回默认值
-func (bv ReqValue) MustFloat32(def float32) float32 {
-	if bv.Error != nil {
-		return def
-	}
-	value, err := strconv.ParseFloat(bv.Value, 32)
-	if err != nil {
-		return def
-	}
-	return float32(value)
-}
-
-// Float64 将参数值转为float64类型
-func (bv ReqValue) Float64() (float64, error) {
-	if bv.Error != nil {
-		return 0, bv.Error
-	}
-	value, err := strconv.ParseFloat(bv.Value, 64)
-	if err != nil {
-		bv.Error = err
-		return 0, err
-	}
-	return value, err
-}
-
-// MustFloat64 将参数值转为float64类型，如果出错或者校验失败则返回默认值
-func (bv ReqValue) MustFloat64(def float64) float64 {
-	if bv.Error != nil {
-		return def
-	}
-	value, err := strconv.ParseFloat(bv.Value, 64)
-	if err != nil {
-		bv.Error = err
-		return def
-	}
-	return value
-}
-
-// Bool 将参数值转为bool类型
-func (bv ReqValue) Bool() (bool, error) {
-	if bv.Error != nil {
-		return false, bv.Error
-	}
-	value, err := strconv.ParseBool(bv.Value)
-	if err != nil {
-		bv.Error = err
-		return false, err
-	}
-	return value, err
-}
-
-// MustBool 将参数值转为bool类型，如果出错或者校验失败则返回默认值
-func (bv ReqValue) MustBool(def bool) bool {
-	if bv.Error != nil {
-		return def
-	}
-	value, err := strconv.ParseBool(bv.Value)
-	if err != nil {
-		return def
-	}
-	return value
 }
