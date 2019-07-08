@@ -17,7 +17,7 @@ func TestGET(t *testing.T) {
 		log.Println(event.Message)
 	}
 	app.Router.GET("/", func(ctx Context) error {
-		t.Error(ctx.QueryValue("id").Int())
+		t.Log(ctx.QueryValue("id"))
 		return nil
 	})
 
@@ -37,7 +37,7 @@ func TestPOST(t *testing.T) {
 		log.Println(event.Message)
 	}
 	app.Router.POST("/", func(ctx Context) error {
-		t.Error(ctx.FormValue("id").Int())
+		t.Log(ctx.FormValue("id"))
 		return nil
 	})
 
@@ -60,8 +60,8 @@ func TestRoute(t *testing.T) {
 		log.Println(event.Message)
 	}
 	app.Router.GET("/:classID/:id", func(ctx Context) error {
-		t.Error(ctx.RouteValue("classID").Int())
-		t.Error(ctx.RouteValue("id").Int())
+		t.Log(ctx.RouteValue("classID"))
+		t.Log(ctx.RouteValue("id"))
 		return nil
 	})
 

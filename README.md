@@ -11,7 +11,7 @@
 * [中间件处理器 `tsing.MiddlewareHandler`](https://github.com/dxvgef/tsing/wiki/%E4%B8%AD%E9%97%B4%E4%BB%B6%E5%A4%84%E7%90%86%E5%99%A8)
 * [事件处理器 `tsing.EventHandler`](https://github.com/dxvgef/tsing/wiki/%E4%BA%8B%E4%BB%B6%E5%A4%84%E7%90%86%E5%99%A8)
 * [会话上下文 `tsing.Context`](https://github.com/dxvgef/tsing/wiki/%E4%BC%9A%E8%AF%9D%E4%B8%8A%E4%B8%8B%E6%96%87)
-* [参数值验证及类型转换](https://github.com/dxvgef/tsing/wiki/%E5%8F%82%E6%95%B0%E5%80%BC%E9%AA%8C%E8%AF%81%E5%8F%8A%E7%B1%BB%E5%9E%8B%E8%BD%AC%E6%8D%A2)
+* [整合`dxvgef/filter`实现请求参数验证](https://github.com/dxvgef/tsing/wiki/%E5%8F%82%E6%95%B0%E5%80%BC%E9%AA%8C%E8%AF%81%E5%8F%8A%E7%B1%BB%E5%9E%8B%E8%BD%AC%E6%8D%A2)
 * [客户端输出 String/JSON](https://github.com/dxvgef/tsing/wiki/%E5%AE%A2%E6%88%B7%E7%AB%AF%E8%BE%93%E5%87%BA)
 * [整合`CloudyKit/jet`实现HTML模板渲染](https://github.com/dxvgef/tsing/wiki/HTML%E6%A8%A1%E6%9D%BF%E6%B8%B2%E6%9F%93)
 * [CORS跨域资源共享控制](https://github.com/dxvgef/tsing/wiki/CORS%E8%B7%A8%E5%9F%9F%E8%B5%84%E6%BA%90%E5%85%B1%E4%BA%AB%E6%8E%A7%E5%88%B6)
