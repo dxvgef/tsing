@@ -19,3 +19,5 @@
 * [整合`dxvgef/token`实现JWT(JSON Web Token)](https://github.com/dxvgef/tsing/wiki/JSON-Web-Token)
 * [整合`uber-go/zap`记录事件日志](https://github.com/dxvgef/tsing/wiki/%E6%97%A5%E5%BF%97%E8%AE%B0%E5%BD%95%E5%99%A8(Logger))
 * [优雅关闭(Graceful Shutdown)](https://github.com/dxvgef/tsing/wiki/%E4%BC%98%E9%9B%85%E5%85%B3%E9%97%AD(Graceful-Shutdown))
+
+[dxvgef/tsing-demo](https://github.com/dxvgef/tsing-demo)是一个基于Tsing 整合常见功能的完整示例，可以做为项目初始化使用
