@@ -213,7 +213,7 @@ func (r *RouterGroup) execute(resp http.ResponseWriter, req *http.Request, param
 			r.app.event500(resp, req, err)
 			return
 		}
-		if ctx.Next == false {
+		if ctx.next == false {
 			return
 		}
 	}
@@ -226,7 +226,7 @@ func (r *RouterGroup) execute(resp http.ResponseWriter, req *http.Request, param
 			r.app.event500(resp, req, err)
 			return
 		}
-		if ctx.Next == false {
+		if ctx.next == false {
 			return
 		}
 	}

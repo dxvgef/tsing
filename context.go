@@ -18,20 +18,20 @@ type Context struct {
 	Request        *http.Request
 	ResponseWriter http.ResponseWriter
 	routerParams   httprouter.Params // 路由参数
-	Next           bool              // 继续执行下一个中间件或处理器
+	next           bool              // 继续执行下一个中间件或处理器
 	app            *App
 	parsed         bool // 是否已解析body
 }
 
 // Continue 继续执行下一个中间件或处理器
 func (ctx Context) Continue() (Context, error) {
-	ctx.Next = true
+	ctx.next = true
 	return ctx, nil
 }
 
 // Break 中断，不继续执行下一个中间件或处理器，如果err不为nil，则同时抛出500事件
 func (ctx Context) Break(err error) (Context, error) {
-	ctx.Next = false
+	ctx.next = false
 	return ctx, err
 }
 
