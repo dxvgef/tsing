@@ -124,8 +124,8 @@ func (ctx Context) RouteValues() []httprouter.Param {
 	return ctx.routerParams
 }
 
-// RouteValue 获取路由参数值
-func (ctx Context) RouteValue(key string) (string, error) {
+// RouteValueStrict 获取路由参数值
+func (ctx Context) RouteValueStrict(key string) (string, error) {
 	for i := range ctx.routerParams {
 		if ctx.routerParams[i].Key == key {
 			return ctx.routerParams[i].Value, nil
@@ -134,8 +134,8 @@ func (ctx Context) RouteValue(key string) (string, error) {
 	return "", errors.New("路由参数" + key + "不存在")
 }
 
-// RawRouteValue 获取某个路由参数值的string类型
-func (ctx Context) RawRouteValue(key string) string {
+// RouteValue 获取某个路由参数值的string类型
+func (ctx Context) RouteValue(key string) string {
 	return ctx.routerParams.ByName(key)
 }
 
@@ -144,16 +144,16 @@ func (ctx Context) QueryValues() url.Values {
 	return ctx.Request.URL.Query()
 }
 
-// QueryValue 获取某个GET参数值
-func (ctx Context) QueryValue(key string) (string, error) {
+// QueryValueStrict 获取某个GET参数值
+func (ctx Context) QueryValueStrict(key string) (string, error) {
 	if len(ctx.Request.URL.Query()[key]) == 0 {
 		return "", errors.New("GET参数" + key + "不存在")
 	}
 	return ctx.Request.URL.Query()[key][0], nil
 }
 
-// RawQueryValue 获取某个GET参数值的string类型
-func (ctx Context) RawQueryValue(key string) string {
+// QueryValue 获取某个GET参数值的string类型
+func (ctx Context) QueryValue(key string) string {
 	if len(ctx.Request.URL.Query()[key]) == 0 {
 		return ""
 	}
@@ -169,8 +169,8 @@ func (ctx Context) PostValues() url.Values {
 	return ctx.Request.PostForm
 }
 
-// FormValue 获取某个POST参数值
-func (ctx Context) FormValue(key string) (string, error) {
+// FormValueStrict 获取某个POST参数值
+func (ctx Context) FormValueStrict(key string) (string, error) {
 	err := ctx.parseBody()
 	if err != nil {
 		return "", err
@@ -182,8 +182,8 @@ func (ctx Context) FormValue(key string) (string, error) {
 	return ctx.Request.Form[key][0], nil
 }
 
-// RawFormValue 获取某个POST参数值的string类型
-func (ctx Context) RawFormValue(key string) string {
+// FormValue 获取某个POST参数值的string类型
+func (ctx Context) FormValue(key string) string {
 	err := ctx.parseBody()
 	if err != nil {
 		return ""
