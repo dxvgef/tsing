@@ -10,9 +10,13 @@ import (
 
 // Event 事件结构
 type Event struct {
-	Status         int      // HTTP状态码
-	Trace          []string // 触发事件的trace
-	Message        error    // 事件消息文本
+	Status int // HTTP状态码
+	// Caller struct { // 错误调用信息
+	// 	File string // 源码文件
+	// 	Line int    // 行号
+	// }
+	Trace          []string // 跟踪信息
+	Message        error    // 消息文本
 	ResponseWriter http.ResponseWriter
 	Request        *http.Request
 }
@@ -44,19 +48,6 @@ func (d *App) event500(resp http.ResponseWriter, req *http.Request, err interfac
 			_, file, line, ok := runtime.Caller(skip)
 			// 排除trace中的标准包信息
 			if strings.HasPrefix(file, goRoot) == false {
-				/*
-				   if d.Error.ShortCaller == true {
-				   	short := file
-				   	fileLen := len(file)
-				   	for i := fileLen - 1; i > 0; i-- {
-				   		if file[i] == '/' {
-				   			short = file[i+1:]
-				   			break
-				   		}
-				   	}
-				   	file = short
-				   }
-				*/
 				event.Trace = append(event.Trace, file+":"+strconv.Itoa(line))
 			}
 			if ok == false {
