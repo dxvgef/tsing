@@ -8,9 +8,10 @@ import (
 	"strings"
 )
 
-// Event 事件结构
+// 事件结构
 type Event struct {
 	Status int // HTTP状态码
+	// todo 计划从Trace中独立出一个Caller
 	// Caller struct { // 错误调用信息
 	// 	File string // 源码文件
 	// 	Line int    // 行号
@@ -21,7 +22,7 @@ type Event struct {
 	Request        *http.Request
 }
 
-// EventHandler 事件处理器类型
+// 事件处理器类型
 type EventHandler func(Event)
 
 // 500(panic)事件

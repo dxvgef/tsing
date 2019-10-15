@@ -13,7 +13,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
-// Context 上下文
+// 连接上下文
 type Context struct {
 	Request        *http.Request
 	ResponseWriter http.ResponseWriter
@@ -23,19 +23,19 @@ type Context struct {
 	parsed         bool // 是否已解析body
 }
 
-// Continue 继续执行下一个中间件或处理器
+// 继续执行下一个中间件或处理器
 func (ctx Context) Continue() (Context, error) {
 	ctx.next = true
 	return ctx, nil
 }
 
-// Break 中断，不继续执行下一个中间件或处理器，如果err不为nil，则同时抛出500事件
+// 中断处理，不继续执行下一个中间件或处理器，如果err不为nil，则同时抛出500事件
 func (ctx Context) Break(err error) (Context, error) {
 	ctx.next = false
 	return ctx, err
 }
 
-// Event 触发500事件，使用此方法是为了精准记录触发事件的源码文件及行号
+// 触发一个500事件，使用此方法是为了精准记录触发事件的源码文件及行号
 func (ctx Context) Event(err error) error {
 	if err != nil && ctx.app.Event.Handler != nil {
 		event := Event{
@@ -66,17 +66,17 @@ func (ctx Context) Event(err error) error {
 	return nil
 }
 
-// SetContextValue 在ctx里存储值，如果key存在则替换值
+// 在ctx里存储值，如果key存在则替换值
 func (ctx *Context) SetContextValue(key string, value interface{}) {
 	ctx.Request = ctx.Request.WithContext(context.WithValue(ctx.Request.Context(), key, value))
 }
 
-// ContextValue 获取ctx里的值，取出后根据写入的类型自行断言
+// 获取ctx里的值，取出后根据写入的类型自行断言
 func (ctx Context) ContextValue(key string) interface{} {
 	return ctx.Request.Context().Value(key)
 }
 
-// Redirect 重定向
+// 向客户端发送重定向响应
 func (ctx Context) Redirect(code int, url string) error {
 	if code < 300 || code > 308 {
 		return errors.New("状态码只能是300-308之间的值")
@@ -86,7 +86,7 @@ func (ctx Context) Redirect(code int, url string) error {
 	return nil
 }
 
-// RealIP 获得客户端真实IP
+// 透过nginx反向代理获得客户端真实IP
 func (ctx Context) RealIP() string {
 	ra := ctx.Request.RemoteAddr
 	if ip := ctx.Request.Header.Get("X-Forwarded-For"); ip != "" {
@@ -119,12 +119,12 @@ func (ctx Context) parseBody() error {
 	return nil
 }
 
-// RouteValues 获取所有路由参数值
+// 获取所有路由参数值
 func (ctx Context) RouteValues() []httprouter.Param {
 	return ctx.routerParams
 }
 
-// RouteValueStrict 获取路由参数值
+// 获取路由参数值
 func (ctx Context) RouteValueStrict(key string) (string, error) {
 	for i := range ctx.routerParams {
 		if ctx.routerParams[i].Key == key {
@@ -134,17 +134,17 @@ func (ctx Context) RouteValueStrict(key string) (string, error) {
 	return "", errors.New("路由参数" + key + "不存在")
 }
 
-// RouteValue 获取某个路由参数值的string类型
+// 获取某个路由参数值的string类型
 func (ctx Context) RouteValue(key string) string {
 	return ctx.routerParams.ByName(key)
 }
 
-// QueryValues 获取所有GET参数值
+// 获取所有GET参数值
 func (ctx Context) QueryValues() url.Values {
 	return ctx.Request.URL.Query()
 }
 
-// QueryValueStrict 获取某个GET参数值
+// 获取某个GET参数值
 func (ctx Context) QueryValueStrict(key string) (string, error) {
 	if len(ctx.Request.URL.Query()[key]) == 0 {
 		return "", errors.New("GET参数" + key + "不存在")
@@ -152,7 +152,7 @@ func (ctx Context) QueryValueStrict(key string) (string, error) {
 	return ctx.Request.URL.Query()[key][0], nil
 }
 
-// QueryValue 获取某个GET参数值的string类型
+// 获取某个GET参数值的string类型
 func (ctx Context) QueryValue(key string) string {
 	if len(ctx.Request.URL.Query()[key]) == 0 {
 		return ""
@@ -160,7 +160,7 @@ func (ctx Context) QueryValue(key string) string {
 	return ctx.Request.URL.Query()[key][0]
 }
 
-// PostValues 获取所有POST参数值
+// 获取所有POST参数值
 func (ctx Context) PostValues() url.Values {
 	err := ctx.parseBody()
 	if err != nil {
@@ -169,7 +169,7 @@ func (ctx Context) PostValues() url.Values {
 	return ctx.Request.PostForm
 }
 
-// FormValueStrict 获取某个POST参数值
+// 获取某个POST参数值
 func (ctx Context) FormValueStrict(key string) (string, error) {
 	err := ctx.parseBody()
 	if err != nil {
@@ -182,7 +182,7 @@ func (ctx Context) FormValueStrict(key string) (string, error) {
 	return ctx.Request.Form[key][0], nil
 }
 
-// FormValue 获取某个POST参数值的string类型
+// 获取某个POST参数值的string类型
 func (ctx Context) FormValue(key string) string {
 	err := ctx.parseBody()
 	if err != nil {

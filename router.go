@@ -9,13 +9,13 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
-// Handler 处理器类型
+// 路由处理器
 type Handler func(Context) error
 
-// MiddlewareHandler 中间件处理器
+// 中间件处理器
 type MiddlewareHandler func(Context) (Context, error)
 
-// RouterGroup 路由组
+// 路由组
 type RouterGroup struct {
 	middlewareHandlers []MiddlewareHandler // 处理器
 	basePath           string              // 基路径
@@ -196,7 +196,7 @@ func (r *RouterGroup) OPTIONS(path string, handler Handler, middlewareHandlers .
 	})
 }
 
-// 执行Handler
+// 执行处理器函数
 func (r *RouterGroup) execute(resp http.ResponseWriter, req *http.Request, params httprouter.Params, handler Handler, middlewareHandlers []MiddlewareHandler) {
 	var ctx Context
 	ctx.Request = req
@@ -206,7 +206,7 @@ func (r *RouterGroup) execute(resp http.ResponseWriter, req *http.Request, param
 
 	var err error
 
-	// 执行路由组的中间件
+	// 执行路由组的中间件处理器
 	for k := range r.middlewareHandlers {
 		ctx, err = r.middlewareHandlers[k](ctx)
 		if err != nil {
@@ -218,7 +218,7 @@ func (r *RouterGroup) execute(resp http.ResponseWriter, req *http.Request, param
 		}
 	}
 
-	// 执行当前路由中间件
+	// 执行当前路由中间件处理器
 	for k := range middlewareHandlers {
 		var err error
 		ctx, err = middlewareHandlers[k](ctx)
@@ -231,7 +231,7 @@ func (r *RouterGroup) execute(resp http.ResponseWriter, req *http.Request, param
 		}
 	}
 
-	// 执行当前路由控制器
+	// 执行当前路由处理器
 	err = handler(ctx)
 	if err != nil {
 		r.app.event500(resp, req, err)
