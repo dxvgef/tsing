@@ -562,8 +562,8 @@ func calcMem(name string, load func()) {
 }
 
 var (
-	http_router http.Handler
-	tsing       http.Handler
+	httpRouter http.Handler
+	tsingApp   http.Handler
 )
 
 func init() {
@@ -581,19 +581,19 @@ func init() {
 		for _, route := range githubAPI {
 			router.Handle(route.method, route.path, handler)
 		}
-		http_router = router
+		httpRouter = router
 	})
 
 	calcMem("Tsing", func() {
-		app := New()
-		handler := func(ctx Context) error {
+		app := tsing.New()
+		handler := func(ctx *tsing.Context) error {
 			ctx.ResponseWriter.WriteHeader(204)
 			return nil
 		}
 		for _, route := range githubAPI {
 			app.Router.Handle(route.method, route.path, handler)
 		}
-		tsing = app
+		tsingApp = app
 	})
 
 }
@@ -619,10 +619,29 @@ func benchRoutes(b *testing.B, router http.Handler, routes []route) {
 	}
 }
 
+// With GithubAPI (goRouter vs beegoMuxRouter vs BoneRouter vs httpRouter vs trieMuxRouter)
+
+/*func BenchmarkHttpRouterWithGithubAPI(b *testing.B) {
+	benchRoutes(b, httpRouter, githubAPI)
+}
+
+func BenchmarkHttpDPWithGithubAPI(b *testing.B) {
+	benchRoutes(b, tsingV1, githubAPI)
+}
+
+func BenchmarkGoRouter1WithGithubAPI(b *testing.B) {
+	benchRoutes(b, goRouter1, githubAPI)
+}
+
+func BenchmarkGoRouter2WithGithubAPI2(b *testing.B) {
+	benchRoutes(b, goRouter2, githubAPI2)
+}
+*/
+
 func BenchmarkHttpRouter(b *testing.B) {
-	benchRoutes(b, http_router, githubAPI)
+	benchRoutes(b, httpRouter, githubAPI)
 }
 
 func BenchmarkTsing(b *testing.B) {
-	benchRoutes(b, tsing, githubAPI)
+	benchRoutes(b, tsingApp, githubAPI)
 }
