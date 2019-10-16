@@ -15,12 +15,12 @@ import (
 
 // 连接上下文
 type Context struct {
+	app            *App
 	Request        *http.Request
 	ResponseWriter http.ResponseWriter
 	routerParams   httprouter.Params // 路由参数
 	next           bool              // 继续执行下一个中间件或处理器
-	app            *App
-	parsed         bool // 是否已解析body
+	parsed         bool              // 是否已解析body
 }
 
 // 继续执行下一个中间件或处理器
@@ -67,12 +67,12 @@ func (ctx Context) Event(err error) error {
 }
 
 // 在ctx里存储值，如果key存在则替换值
-func (ctx *Context) SetContextValue(key string, value interface{}) {
+func (ctx *Context) SetValue(key string, value interface{}) {
 	ctx.Request = ctx.Request.WithContext(context.WithValue(ctx.Request.Context(), key, value))
 }
 
 // 获取ctx里的值，取出后根据写入的类型自行断言
-func (ctx Context) ContextValue(key string) interface{} {
+func (ctx Context) GetValue(key string) interface{} {
 	return ctx.Request.Context().Value(key)
 }
 
@@ -125,17 +125,17 @@ func (ctx Context) RouteValues() []httprouter.Param {
 }
 
 // 获取路由参数值
-func (ctx Context) RouteValueStrict(key string) (string, error) {
+func (ctx Context) RouteValue(key string) (string, bool) {
 	for i := range ctx.routerParams {
 		if ctx.routerParams[i].Key == key {
-			return ctx.routerParams[i].Value, nil
+			return ctx.routerParams[i].Value, false
 		}
 	}
-	return "", errors.New("路由参数" + key + "不存在")
+	return "", true
 }
 
 // 获取某个路由参数值的string类型
-func (ctx Context) RouteValue(key string) string {
+func (ctx Context) RouteValueString(key string) string {
 	return ctx.routerParams.ByName(key)
 }
 
@@ -145,15 +145,15 @@ func (ctx Context) QueryValues() url.Values {
 }
 
 // 获取某个GET参数值
-func (ctx Context) QueryValueStrict(key string) (string, error) {
+func (ctx Context) QueryValue(key string) (string, bool) {
 	if len(ctx.Request.URL.Query()[key]) == 0 {
-		return "", errors.New("GET参数" + key + "不存在")
+		return "", false
 	}
-	return ctx.Request.URL.Query()[key][0], nil
+	return ctx.Request.URL.Query()[key][0], true
 }
 
 // 获取某个GET参数值的string类型
-func (ctx Context) QueryValue(key string) string {
+func (ctx Context) QueryValueString(key string) string {
 	if len(ctx.Request.URL.Query()[key]) == 0 {
 		return ""
 	}
@@ -170,22 +170,20 @@ func (ctx Context) PostValues() url.Values {
 }
 
 // 获取某个POST参数值
-func (ctx Context) FormValueStrict(key string) (string, error) {
-	err := ctx.parseBody()
-	if err != nil {
-		return "", err
+func (ctx Context) PostValue(key string) (string, bool) {
+	if err := ctx.parseBody(); err != nil {
+		return "", false
 	}
 	vs := ctx.Request.Form[key]
 	if len(vs) == 0 {
-		return "", errors.New(ctx.Request.Method + "参数" + key + "不存在")
+		return "", false
 	}
-	return ctx.Request.Form[key][0], nil
+	return ctx.Request.Form[key][0], true
 }
 
 // 获取某个POST参数值的string类型
-func (ctx Context) FormValue(key string) string {
-	err := ctx.parseBody()
-	if err != nil {
+func (ctx Context) PostValueString(key string) string {
+	if err := ctx.parseBody(); err != nil {
 		return ""
 	}
 	vs := ctx.Request.Form[key]

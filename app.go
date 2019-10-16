@@ -8,6 +8,7 @@ import (
 
 // 框架实例
 type App struct {
+	Recovery              bool // 启用自动恢复
 	RedirectTrailingSlash bool // 自动重定向到结尾带有或不带有斜杠的URL
 	FixPath               bool // 清理URL中的不规范路径分隔符，例如//和../
 	HandleOPTIONS         bool // 自定响应OPTIONS请求
