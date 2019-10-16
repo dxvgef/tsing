@@ -13,11 +13,11 @@ func TestMiddleware(t *testing.T) {
 	log.SetFlags(log.Lshortfile)
 
 	app := New()
-	app.Event.Handler = func(event Event) {
+	app.Config.EventHandler = func(event Event) {
 		log.Println(event.Message)
 	}
 	router := app.Router.GROUP("", func(ctx Context) (Context, error) {
-		ctx.SetContextValue("test", "这是路由组中间件传递下来的数据")
+		ctx.SetValue("test", "这是路由组中间件传递下来的数据")
 		log.Println("执行了路由组中间件AAA")
 		return ctx.Continue()
 	}, func(ctx Context) (Context, error) {
@@ -26,7 +26,7 @@ func TestMiddleware(t *testing.T) {
 	})
 	router.POST("/", func(ctx Context) error {
 		log.Println("执行了[" + ctx.Request.Method + "]" + ctx.Request.URL.Path + "方法")
-		log.Println(ctx.ContextValue("test"))
+		log.Println(ctx.GetValue("test"))
 		return nil
 	}, func(ctx Context) (Context, error) {
 		log.Println("执行了路由中间件CCC")

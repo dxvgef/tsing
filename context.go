@@ -15,8 +15,10 @@ import (
 
 // 连接上下文
 type Context struct {
-	app            *App
-	Request        *http.Request
+	app     *App
+	Request *http.Request
+	// responseWriter customResponseWriter  // 自定义response
+	// ResponseWriter _CustomResponseWriter // 用自定义resp替代http.resp
 	ResponseWriter http.ResponseWriter
 	routerParams   httprouter.Params // 路由参数
 	next           bool              // 继续执行下一个中间件或处理器
@@ -24,30 +26,30 @@ type Context struct {
 }
 
 // 继续执行下一个中间件或处理器
-func (ctx Context) Continue() (Context, error) {
+func (ctx Context) Next() (Context, error) {
 	ctx.next = true
 	return ctx, nil
 }
 
 // 中断处理，不继续执行下一个中间件或处理器，如果err不为nil，则同时抛出500事件
-func (ctx Context) Break(err error) (Context, error) {
+func (ctx Context) Abort(err error) (Context, error) {
 	ctx.next = false
 	return ctx, err
 }
 
 // 触发一个500事件，使用此方法是为了精准记录触发事件的源码文件及行号
 func (ctx Context) Event(err error) error {
-	if err != nil && ctx.app.Event.Handler != nil {
+	if err != nil && ctx.app.Config.EventHandler != nil {
 		event := Event{
 			Status:         500,
 			Message:        err,
 			ResponseWriter: ctx.ResponseWriter,
 			Request:        ctx.Request,
 		}
-		if ctx.app.Event.EnableTrace == true {
+		if ctx.app.Config.EventTrace == true {
 			_, file, line, _ := runtime.Caller(1)
 			l := strconv.Itoa(line)
-			if ctx.app.Event.ShortCaller == true {
+			if ctx.app.Config.EventShortPath == true {
 				short := file
 				fileLen := len(file)
 				for i := fileLen - 1; i > 0; i-- {
@@ -60,7 +62,7 @@ func (ctx Context) Event(err error) error {
 			}
 			event.Trace = append(event.Trace, file+":"+l)
 		}
-		ctx.app.Event.Handler(event)
+		ctx.app.Config.EventHandler(event)
 	}
 	// 不再将传入的error返回，避免再触发handle500函数
 	return nil
@@ -87,7 +89,7 @@ func (ctx Context) Redirect(code int, url string) error {
 }
 
 // 透过nginx反向代理获得客户端真实IP
-func (ctx Context) RealIP() string {
+func (ctx Context) RemoteIP() string {
 	ra := ctx.Request.RemoteAddr
 	if ip := ctx.Request.Header.Get("X-Forwarded-For"); ip != "" {
 		ra = strings.Split(ip, ", ")[0]
@@ -125,7 +127,7 @@ func (ctx Context) RouteValues() []httprouter.Param {
 }
 
 // 获取路由参数值
-func (ctx Context) RouteValue(key string) (string, bool) {
+func (ctx Context) Param(key string) (string, bool) {
 	for i := range ctx.routerParams {
 		if ctx.routerParams[i].Key == key {
 			return ctx.routerParams[i].Value, false
@@ -135,17 +137,17 @@ func (ctx Context) RouteValue(key string) (string, bool) {
 }
 
 // 获取某个路由参数值的string类型
-func (ctx Context) RouteValueString(key string) string {
+func (ctx Context) ParamValue(key string) string {
 	return ctx.routerParams.ByName(key)
 }
 
 // 获取所有GET参数值
-func (ctx Context) QueryValues() url.Values {
+func (ctx Context) Querys() url.Values {
 	return ctx.Request.URL.Query()
 }
 
 // 获取某个GET参数值
-func (ctx Context) QueryValue(key string) (string, bool) {
+func (ctx Context) Query(key string) (string, bool) {
 	if len(ctx.Request.URL.Query()[key]) == 0 {
 		return "", false
 	}
@@ -153,7 +155,7 @@ func (ctx Context) QueryValue(key string) (string, bool) {
 }
 
 // 获取某个GET参数值的string类型
-func (ctx Context) QueryValueString(key string) string {
+func (ctx Context) QueryValue(key string) string {
 	if len(ctx.Request.URL.Query()[key]) == 0 {
 		return ""
 	}
@@ -161,7 +163,7 @@ func (ctx Context) QueryValueString(key string) string {
 }
 
 // 获取所有POST参数值
-func (ctx Context) PostValues() url.Values {
+func (ctx Context) Posts() url.Values {
 	err := ctx.parseBody()
 	if err != nil {
 		return url.Values{}
@@ -170,7 +172,7 @@ func (ctx Context) PostValues() url.Values {
 }
 
 // 获取某个POST参数值
-func (ctx Context) PostValue(key string) (string, bool) {
+func (ctx Context) Post(key string) (string, bool) {
 	if err := ctx.parseBody(); err != nil {
 		return "", false
 	}
@@ -182,7 +184,7 @@ func (ctx Context) PostValue(key string) (string, bool) {
 }
 
 // 获取某个POST参数值的string类型
-func (ctx Context) PostValueString(key string) string {
+func (ctx Context) PostValue(key string) string {
 	if err := ctx.parseBody(); err != nil {
 		return ""
 	}

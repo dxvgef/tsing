@@ -2,7 +2,9 @@ package tsing
 
 import (
 	"errors"
+	"net"
 	"net/http"
+	"reflect"
 	"runtime"
 	"strconv"
 	"strings"
@@ -10,24 +12,38 @@ import (
 
 // 事件结构
 type Event struct {
-	Status int // HTTP状态码
-	// todo 计划从Trace中独立出一个Caller
-	// Caller struct { // 错误调用信息
-	// 	File string // 源码文件
-	// 	Line int    // 行号
-	// }
-	Trace          []string // 跟踪信息
+	Status         int      // HTTP状态码
 	Message        error    // 消息文本
+	Trigger        _Trigger // 触发信息
+	Trace          []string // 跟踪信息
 	ResponseWriter http.ResponseWriter
 	Request        *http.Request
+}
+
+// 函数信息
+type _Trigger struct {
+	Func string
+	File string
+	Line int
 }
 
 // 事件处理器类型
 type EventHandler func(Event)
 
-// 500(panic)事件
-func (d *App) event500(resp http.ResponseWriter, req *http.Request, err interface{}) {
-	if d.Event.Handler == nil {
+// 获得函数信息
+func getFuncInfo(obj interface{}) _Trigger {
+	ptr := reflect.ValueOf(obj).Pointer()
+	file, line := runtime.FuncForPC(ptr).FileLine(ptr)
+	return _Trigger{
+		Func: runtime.FuncForPC(ptr).Name(),
+		File: file,
+		Line: line,
+	}
+}
+
+// 触发handler的panic事件
+func (d *App) eventHandlerPanic(resp http.ResponseWriter, req *http.Request, err interface{}) {
+	if d.Config.EventHandler == nil {
 		return
 	}
 	event := Event{
@@ -36,14 +52,53 @@ func (d *App) event500(resp http.ResponseWriter, req *http.Request, err interfac
 		Status:         500,
 	}
 
-	if errStr, ok := err.(string); ok == true {
-		event.Message = errors.New(errStr)
-	} else if errErr, ok := err.(error); ok == true {
-		event.Message = errErr
-	} else {
-		event.Message = errors.New("未知错误")
+	switch t := err.(type) {
+	case string:
+		event.Message = errors.New(t)
+	case error:
+		event.Message = t
+	case *net.OpError:
+		event.Message = t.Err
+	default:
+		event.Message = errors.New("未知错误消息类型")
 	}
-	if d.Event.EnableTrace == true {
+
+	if d.Config.EventTrace == true {
+		goRoot := runtime.GOROOT()
+		for skip := 0; ; skip++ {
+			funcPtr, file, line, ok := runtime.Caller(skip)
+			// 排除trace中的标准包信息
+			if strings.HasPrefix(file, goRoot) == false {
+				event.Trace = append(event.Trace, file+":"+strconv.Itoa(line))
+			}
+			if skip == 3 && d.Config.EventTrigger == true {
+				event.Trigger.File = file
+				event.Trigger.Line = line
+				event.Trigger.Func = runtime.FuncForPC(funcPtr).Name()
+			}
+			if ok == false {
+				break
+			}
+		}
+	}
+
+	d.Config.EventHandler(event)
+}
+
+// 触发handler的error事件
+func (d *App) eventHandlerError(resp http.ResponseWriter, req *http.Request, trigger _Trigger, err error) {
+	if d.Config.EventHandler == nil {
+		return
+	}
+	event := Event{
+		Request:        req,
+		ResponseWriter: resp,
+		Status:         http.StatusInternalServerError,
+		Message:        err,
+		Trigger:        trigger,
+	}
+
+	if d.Config.EventTrace == true {
 		goRoot := runtime.GOROOT()
 		for skip := 0; ; skip++ {
 			_, file, line, ok := runtime.Caller(skip)
@@ -57,30 +112,30 @@ func (d *App) event500(resp http.ResponseWriter, req *http.Request, err interfac
 		}
 	}
 
-	d.Event.Handler(event)
+	d.Config.EventHandler(event)
 }
 
-// 404事件处理
-func (d *App) event404(resp http.ResponseWriter, req *http.Request) {
-	if d.Event.Handler == nil {
+// 触发404事件
+func (d *App) eventNotFound(resp http.ResponseWriter, req *http.Request) {
+	if d.Config.EventHandler == nil {
 		return
 	}
-	d.Event.Handler(Event{
-		Status:         404,
-		Message:        errors.New(http.StatusText(404)),
+	d.Config.EventHandler(Event{
+		Status:         http.StatusNotFound,
+		Message:        errors.New(http.StatusText(http.StatusNotFound)),
 		Request:        req,
 		ResponseWriter: resp,
 	})
 }
 
-// 405事件处理
-func (d *App) event405(resp http.ResponseWriter, req *http.Request) {
-	if d.Event.Handler == nil {
+// 触发405事件
+func (d *App) eventMethodNotAllowed(resp http.ResponseWriter, req *http.Request) {
+	if d.Config.EventHandler == nil {
 		return
 	}
-	d.Event.Handler(Event{
-		Status:         405,
-		Message:        errors.New(http.StatusText(405)),
+	d.Config.EventHandler(Event{
+		Status:         http.StatusMethodNotAllowed,
+		Message:        errors.New(http.StatusText(http.StatusMethodNotAllowed)),
 		Request:        req,
 		ResponseWriter: resp,
 	})

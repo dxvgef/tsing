@@ -13,11 +13,11 @@ func TestGET(t *testing.T) {
 	log.SetFlags(log.Lshortfile)
 
 	app := New()
-	app.Event.Handler = func(event Event) {
+	app.Config.EventHandler = func(event Event) {
 		log.Println(event.Message)
 	}
 	app.Router.GET("/", func(ctx Context) error {
-		t.Log(ctx.QueryValueStrict("id"))
+		t.Log(ctx.QueryValue("id"))
 		return nil
 	})
 
@@ -33,11 +33,11 @@ func TestPOST(t *testing.T) {
 	log.SetFlags(log.Lshortfile)
 
 	app := New()
-	app.Event.Handler = func(event Event) {
+	app.Config.EventHandler = func(event Event) {
 		log.Println(event.Message)
 	}
 	app.Router.POST("/", func(ctx Context) error {
-		t.Log(ctx.FormValueStrict("id"))
+		t.Log(ctx.PostValue("id"))
 		return nil
 	})
 
@@ -56,12 +56,12 @@ func TestRoute(t *testing.T) {
 	log.SetFlags(log.Lshortfile)
 
 	app := New()
-	app.Event.Handler = func(event Event) {
+	app.Config.EventHandler = func(event Event) {
 		log.Println(event.Message)
 	}
 	app.Router.GET("/:classID/:id", func(ctx Context) error {
-		t.Log(ctx.RouteValueStrict("classID"))
-		t.Log(ctx.RouteValueStrict("id"))
+		t.Log(ctx.ParamValue("classID"))
+		t.Log(ctx.ParamValue("id"))
 		return nil
 	})
 

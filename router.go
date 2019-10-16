@@ -1,7 +1,6 @@
 package tsing
 
 import (
-	"fmt"
 	"net/http"
 	"os"
 	"strings"
@@ -24,12 +23,12 @@ type RouterGroup struct {
 
 // Handle 路由
 func (r *RouterGroup) Handle(method string, path string, handler Handler, middlewareHandlers ...MiddlewareHandler) {
-	defer func() {
-		if err := recover(); err != nil {
-			fmt.Println(err.(string))
-			os.Exit(1)
-		}
-	}()
+	// defer func() {
+	// 	if err := recover(); err != nil {
+	// 		fmt.Println(err.(string))
+	// 		os.Exit(1)
+	// 	}
+	// }()
 	r.app.httpRouter.Handle(method, path, func(resp http.ResponseWriter, req *http.Request, params httprouter.Params) {
 		r.execute(resp, req, params, handler, middlewareHandlers)
 	})
@@ -37,13 +36,6 @@ func (r *RouterGroup) Handle(method string, path string, handler Handler, middle
 
 // PATH 定义路由到目录，不支持路由组和中间件
 func (r *RouterGroup) PATH(url string, local string, list bool) {
-	defer func() {
-		if err := recover(); err != nil {
-			// 记录panic事件，但不执行 ServerError处理器，而是直接退出进程
-			fmt.Println(err.(string))
-			os.Exit(1)
-		}
-	}()
 	if strings.HasPrefix(url, "/") == false {
 		url = "/" + url
 	}
@@ -58,7 +50,7 @@ func (r *RouterGroup) PATH(url string, local string, list bool) {
 		if params.ByName("filepath") == "" || params.ByName("filepath")[len(params.ByName("filepath"))-1:] == "/" {
 			if list == false {
 				// 如果不允许列出目录，则触发404事件处理
-				r.app.event404(resp, req)
+				r.app.eventNotFound(resp, req)
 				return
 			}
 		}
@@ -66,7 +58,7 @@ func (r *RouterGroup) PATH(url string, local string, list bool) {
 		// 判断请求的文件是否存在
 		file := local + params.ByName("filepath")
 		if _, err := os.Stat(file); err != nil {
-			r.app.event404(resp, req)
+			r.app.eventNotFound(resp, req)
 			return
 		}
 		http.ServeFile(resp, req, file)
@@ -75,16 +67,10 @@ func (r *RouterGroup) PATH(url string, local string, list bool) {
 
 // FILE 定义路由到文件，不支持路由组和中间件
 func (r *RouterGroup) FILE(url string, local string) {
-	defer func() {
-		if err := recover(); err != nil {
-			fmt.Println(err.(string))
-			os.Exit(1)
-		}
-	}()
 	// 使用GET方法模拟httprouter.ServeFiles()，防止其内部直接输出404消息给客户端
 	r.app.httpRouter.GET(url, func(resp http.ResponseWriter, req *http.Request, params httprouter.Params) {
 		if _, err := os.Stat(local); err != nil {
-			r.app.event404(resp, req)
+			r.app.eventNotFound(resp, req)
 			return
 		}
 		http.ServeFile(resp, req, local)
@@ -107,12 +93,6 @@ func (r *RouterGroup) GROUP(path string, middlewareHandlers ...MiddlewareHandler
 
 // GET 路由
 func (r *RouterGroup) GET(path string, handler Handler, middlewareHandlers ...MiddlewareHandler) {
-	defer func() {
-		if err := recover(); err != nil {
-			fmt.Println(err.(string))
-			os.Exit(1)
-		}
-	}()
 	r.app.httpRouter.GET(r.basePath+path, func(resp http.ResponseWriter, req *http.Request, params httprouter.Params) {
 		r.execute(resp, req, params, handler, middlewareHandlers)
 	})
@@ -120,12 +100,6 @@ func (r *RouterGroup) GET(path string, handler Handler, middlewareHandlers ...Mi
 
 // POST 路由
 func (r *RouterGroup) POST(path string, handler Handler, middlewareHandlers ...MiddlewareHandler) {
-	defer func() {
-		if err := recover(); err != nil {
-			fmt.Println(err.(string))
-			os.Exit(1)
-		}
-	}()
 	r.app.httpRouter.POST(r.basePath+path, func(resp http.ResponseWriter, req *http.Request, params httprouter.Params) {
 		r.execute(resp, req, params, handler, middlewareHandlers)
 	})
@@ -133,12 +107,6 @@ func (r *RouterGroup) POST(path string, handler Handler, middlewareHandlers ...M
 
 // PUT 路由
 func (r *RouterGroup) PUT(path string, handler Handler, middlewareHandlers ...MiddlewareHandler) {
-	defer func() {
-		if err := recover(); err != nil {
-			fmt.Println(err.(string))
-			os.Exit(1)
-		}
-	}()
 	r.app.httpRouter.PUT(r.basePath+path, func(resp http.ResponseWriter, req *http.Request, params httprouter.Params) {
 		r.execute(resp, req, params, handler, middlewareHandlers)
 	})
@@ -146,12 +114,6 @@ func (r *RouterGroup) PUT(path string, handler Handler, middlewareHandlers ...Mi
 
 // HEAD 路由
 func (r *RouterGroup) HEAD(path string, handler Handler, middlewareHandlers ...MiddlewareHandler) {
-	defer func() {
-		if err := recover(); err != nil {
-			fmt.Println(err.(string))
-			os.Exit(1)
-		}
-	}()
 	r.app.httpRouter.HEAD(r.basePath+path, func(resp http.ResponseWriter, req *http.Request, params httprouter.Params) {
 		r.execute(resp, req, params, handler, middlewareHandlers)
 	})
@@ -159,12 +121,6 @@ func (r *RouterGroup) HEAD(path string, handler Handler, middlewareHandlers ...M
 
 // PATCH 路由
 func (r *RouterGroup) PATCH(path string, handler Handler, middlewareHandlers ...MiddlewareHandler) {
-	defer func() {
-		if err := recover(); err != nil {
-			fmt.Println(err.(string))
-			os.Exit(1)
-		}
-	}()
 	r.app.httpRouter.PATCH(r.basePath+path, func(resp http.ResponseWriter, req *http.Request, params httprouter.Params) {
 		r.execute(resp, req, params, handler, middlewareHandlers)
 	})
@@ -172,12 +128,6 @@ func (r *RouterGroup) PATCH(path string, handler Handler, middlewareHandlers ...
 
 // DELETE 路由
 func (r *RouterGroup) DELETE(path string, handler Handler, middlewareHandlers ...MiddlewareHandler) {
-	defer func() {
-		if err := recover(); err != nil {
-			fmt.Println(err.(string))
-			os.Exit(1)
-		}
-	}()
 	r.app.httpRouter.DELETE(r.basePath+path, func(resp http.ResponseWriter, req *http.Request, params httprouter.Params) {
 		r.execute(resp, req, params, handler, middlewareHandlers)
 	})
@@ -185,12 +135,6 @@ func (r *RouterGroup) DELETE(path string, handler Handler, middlewareHandlers ..
 
 // OPTIONS 路由
 func (r *RouterGroup) OPTIONS(path string, handler Handler, middlewareHandlers ...MiddlewareHandler) {
-	defer func() {
-		if err := recover(); err != nil {
-			fmt.Println(err.(string))
-			os.Exit(1)
-		}
-	}()
 	r.app.httpRouter.OPTIONS(r.basePath+path, func(resp http.ResponseWriter, req *http.Request, params httprouter.Params) {
 		r.execute(resp, req, params, handler, middlewareHandlers)
 	})
@@ -198,19 +142,22 @@ func (r *RouterGroup) OPTIONS(path string, handler Handler, middlewareHandlers .
 
 // 执行处理器函数
 func (r *RouterGroup) execute(resp http.ResponseWriter, req *http.Request, params httprouter.Params, handler Handler, middlewareHandlers []MiddlewareHandler) {
-	var ctx Context
-	ctx.Request = req
-	ctx.ResponseWriter = resp
+	// 当有一个新连接时，从context池里取出一个对象
+	ctx := r.app.contextPool.Get().(Context)
+	// 重置ctx
 	ctx.app = r.app
-	ctx.routerParams = params
+	ctx.ResponseWriter = resp
+	ctx.Request = req
+	ctx.next = false
+	ctx.parsed = false
+	ctx.routerParams = httprouter.Params{}
 
 	var err error
 
 	// 执行路由组的中间件处理器
 	for k := range r.middlewareHandlers {
-		ctx, err = r.middlewareHandlers[k](ctx)
-		if err != nil {
-			r.app.event500(resp, req, err)
+		if ctx, err = r.middlewareHandlers[k](ctx); err != nil {
+			r.app.eventHandlerPanic(resp, req, err)
 			return
 		}
 		if ctx.next == false {
@@ -221,9 +168,8 @@ func (r *RouterGroup) execute(resp http.ResponseWriter, req *http.Request, param
 	// 执行当前路由中间件处理器
 	for k := range middlewareHandlers {
 		var err error
-		ctx, err = middlewareHandlers[k](ctx)
-		if err != nil {
-			r.app.event500(resp, req, err)
+		if ctx, err = middlewareHandlers[k](ctx); err != nil {
+			r.app.eventHandlerPanic(resp, req, err)
 			return
 		}
 		if ctx.next == false {
@@ -232,8 +178,14 @@ func (r *RouterGroup) execute(resp http.ResponseWriter, req *http.Request, param
 	}
 
 	// 执行当前路由处理器
-	err = handler(ctx)
-	if err != nil {
-		r.app.event500(resp, req, err)
+	if err = handler(ctx); err != nil {
+		var trigger _Trigger
+		if r.app.Config.EventTrigger == true {
+			trigger = getFuncInfo(handler)
+		}
+		r.app.eventHandlerError(resp, req, trigger, err)
 	}
+
+	// 将ctx放回池中
+	r.app.contextPool.Put(ctx)
 }
