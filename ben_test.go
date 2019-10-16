@@ -586,7 +586,7 @@ func init() {
 
 	calcMem("Tsing", func() {
 		app := New()
-		handler := func(ctx Context) error {
+		handler := func(ctx *Context) error {
 			ctx.ResponseWriter.WriteHeader(204)
 			return nil
 		}

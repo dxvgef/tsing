@@ -16,24 +16,26 @@ func TestMiddleware(t *testing.T) {
 	app.Config.EventHandler = func(event Event) {
 		log.Println(event.Message)
 	}
-	router := app.Router.GROUP("", func(ctx Context) (Context, error) {
+	router := app.Router.GROUP("", func(ctx *Context) error {
 		ctx.SetValue("test", "这是路由组中间件传递下来的数据")
 		log.Println("执行了路由组中间件AAA")
-		return ctx.Continue()
-	}, func(ctx Context) (Context, error) {
+		ctx.Next()
+		return nil
+	}, func(ctx *Context) error {
 		log.Println("执行了路由组中间件BBB")
-		return ctx.Continue()
+		// ctx.Next()
+		return nil
 	})
-	router.POST("/", func(ctx Context) error {
+	router.POST("/", func(ctx *Context) error {
 		log.Println("执行了[" + ctx.Request.Method + "]" + ctx.Request.URL.Path + "方法")
 		log.Println(ctx.GetValue("test"))
 		return nil
-	}, func(ctx Context) (Context, error) {
+	}, func(ctx *Context) error {
 		log.Println("执行了路由中间件CCC")
-		return ctx.Continue()
-	}, func(ctx Context) (Context, error) {
+		return nil
+	}, func(ctx *Context) error {
 		log.Println("执行了路由中间件DDD")
-		return ctx.Continue()
+		return nil
 	})
 
 	v := url.Values{}

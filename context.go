@@ -26,15 +26,8 @@ type Context struct {
 }
 
 // 继续执行下一个中间件或处理器
-func (ctx Context) Next() (Context, error) {
+func (ctx *Context) Next() {
 	ctx.next = true
-	return ctx, nil
-}
-
-// 中断处理，不继续执行下一个中间件或处理器，如果err不为nil，则同时抛出500事件
-func (ctx Context) Abort(err error) (Context, error) {
-	ctx.next = false
-	return ctx, err
 }
 
 // 触发一个500事件，使用此方法是为了精准记录触发事件的源码文件及行号

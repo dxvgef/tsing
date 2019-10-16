@@ -45,7 +45,7 @@ func New() *App {
 	}
 	// 定义context池
 	app.contextPool.New = func() interface{} {
-		return Context{app: &app}
+		return &Context{app: &app}
 	}
 	return &app
 }
