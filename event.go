@@ -20,11 +20,11 @@ type Event struct {
 	Request        *http.Request
 }
 
-// 函数信息
+// 触发信息
 type _Trigger struct {
-	Func string
-	File string
-	Line int
+	Func string // 函数名
+	File string // 文件名
+	Line int    // 行号
 }
 
 // 事件处理器类型
