@@ -55,7 +55,7 @@ func (ctx *Context) Event(err error) error {
 			}
 			event.Trace = append(event.Trace, file+":"+l)
 		}
-		ctx.app.Config.EventHandler(event)
+		ctx.app.Config.EventHandler(&event)
 	}
 	// 不再将传入的error返回，避免再触发handle500函数
 	return nil

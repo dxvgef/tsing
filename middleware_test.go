@@ -13,7 +13,7 @@ func TestMiddleware(t *testing.T) {
 	log.SetFlags(log.Lshortfile)
 
 	app := New()
-	app.Config.EventHandler = func(event Event) {
+	app.Config.EventHandler = func(event *Event) {
 		log.Println(event.Message)
 	}
 	router := app.Router.GROUP("", func(ctx *Context) error {

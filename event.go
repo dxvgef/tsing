@@ -28,7 +28,7 @@ type _Trigger struct {
 }
 
 // 事件处理器类型
-type EventHandler func(Event)
+type EventHandler func(*Event)
 
 // 获得函数信息
 func getFuncInfo(obj interface{}) _Trigger {
@@ -82,7 +82,7 @@ func (d *App) eventHandlerPanic(resp http.ResponseWriter, req *http.Request, err
 		}
 	}
 
-	d.Config.EventHandler(event)
+	d.Config.EventHandler(&event)
 }
 
 // 触发handler的error事件
@@ -112,7 +112,7 @@ func (d *App) eventHandlerError(resp http.ResponseWriter, req *http.Request, tri
 		}
 	}
 
-	d.Config.EventHandler(event)
+	d.Config.EventHandler(&event)
 }
 
 // 触发404事件
@@ -120,7 +120,7 @@ func (d *App) eventNotFound(resp http.ResponseWriter, req *http.Request) {
 	if d.Config.EventHandler == nil {
 		return
 	}
-	d.Config.EventHandler(Event{
+	d.Config.EventHandler(&Event{
 		Status:         http.StatusNotFound,
 		Message:        errors.New(http.StatusText(http.StatusNotFound)),
 		Request:        req,
@@ -133,7 +133,7 @@ func (d *App) eventMethodNotAllowed(resp http.ResponseWriter, req *http.Request)
 	if d.Config.EventHandler == nil {
 		return
 	}
-	d.Config.EventHandler(Event{
+	d.Config.EventHandler(&Event{
 		Status:         http.StatusMethodNotAllowed,
 		Message:        errors.New(http.StatusText(http.StatusMethodNotAllowed)),
 		Request:        req,
