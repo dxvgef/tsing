@@ -18,9 +18,24 @@ type RouterGroup struct {
 	app      *App      // 调度器
 }
 
+// GROUP 路由组
+func (r *RouterGroup) GROUP(path string, handlers ...Handler) *RouterGroup {
+	// 生成一个新的路由组
+	group := RouterGroup{
+		handlers: r.handlers,        // 初始处理器为上级路由组的处理器
+		basePath: r.basePath + path, // 拼接路由组的基本路径
+		app:      r.app,
+	}
+	// 组合上级路由组处理器和当前传入的处理器
+	for k := range handlers {
+		group.handlers = append(group.handlers, handlers[k])
+	}
+	return &group
+}
+
 // Handle 路由
 func (r *RouterGroup) Handle(method string, path string, handler Handler, middlewareHandlers ...Handler) {
-	r.app.httpRouter.Handle(method, path, func(resp http.ResponseWriter, req *http.Request, params httprouter.Params) {
+	r.app.httpRouter.Handle(method, r.basePath+path, func(resp http.ResponseWriter, req *http.Request, params httprouter.Params) {
 		r.execute(resp, req, params, handler, middlewareHandlers)
 	})
 }
@@ -66,21 +81,6 @@ func (r *RouterGroup) FILE(url string, local string) {
 		}
 		http.ServeFile(resp, req, local)
 	})
-}
-
-// GROUP 路由组
-func (r *RouterGroup) GROUP(path string, handlers ...Handler) *RouterGroup {
-	// 生成一个新的路由组
-	group := RouterGroup{
-		handlers: r.handlers,        // 初始处理器为上级路由组的处理器
-		basePath: r.basePath + path, // 拼接路由组的基本路径
-		app:      r.app,
-	}
-	// 组合上级路由组处理器和当前传入的处理器
-	for k := range handlers {
-		group.handlers = append(group.handlers, handlers[k])
-	}
-	return &group
 }
 
 // GET 路由
