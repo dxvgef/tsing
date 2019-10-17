@@ -31,7 +31,7 @@ func (ctx *Context) Next() {
 }
 
 // 触发一个500事件，使用此方法是为了精准记录触发事件的源码文件及行号
-func (ctx Context) Event(err error) error {
+func (ctx *Context) Event(err error) error {
 	if err != nil && ctx.app.Config.EventHandler != nil {
 		event := Event{
 			Status:         500,
@@ -67,12 +67,12 @@ func (ctx *Context) SetValue(key string, value interface{}) {
 }
 
 // 获取ctx里的值，取出后根据写入的类型自行断言
-func (ctx Context) GetValue(key string) interface{} {
+func (ctx *Context) GetValue(key string) interface{} {
 	return ctx.Request.Context().Value(key)
 }
 
 // 向客户端发送重定向响应
-func (ctx Context) Redirect(code int, url string) error {
+func (ctx *Context) Redirect(code int, url string) error {
 	if code < 300 || code > 308 {
 		return errors.New("状态码只能是300-308之间的值")
 	}
@@ -82,7 +82,7 @@ func (ctx Context) Redirect(code int, url string) error {
 }
 
 // 透过nginx反向代理获得客户端真实IP
-func (ctx Context) RemoteIP() string {
+func (ctx *Context) RemoteIP() string {
 	ra := ctx.Request.RemoteAddr
 	if ip := ctx.Request.Header.Get("X-Forwarded-For"); ip != "" {
 		ra = strings.Split(ip, ", ")[0]
@@ -95,7 +95,7 @@ func (ctx Context) RemoteIP() string {
 }
 
 // 解析body数据
-func (ctx Context) parseBody() error {
+func (ctx *Context) parseBody() error {
 	// 判断是否已经解析过body
 	if ctx.parsed == true {
 		return nil
@@ -115,12 +115,12 @@ func (ctx Context) parseBody() error {
 }
 
 // 获取所有路由参数值
-func (ctx Context) RouteValues() []httprouter.Param {
+func (ctx *Context) RouteValues() []httprouter.Param {
 	return ctx.routerParams
 }
 
 // 获取路由参数值
-func (ctx Context) Param(key string) (string, bool) {
+func (ctx *Context) Param(key string) (string, bool) {
 	for i := range ctx.routerParams {
 		if ctx.routerParams[i].Key == key {
 			return ctx.routerParams[i].Value, false
@@ -130,17 +130,17 @@ func (ctx Context) Param(key string) (string, bool) {
 }
 
 // 获取某个路由参数值的string类型
-func (ctx Context) ParamValue(key string) string {
+func (ctx *Context) ParamValue(key string) string {
 	return ctx.routerParams.ByName(key)
 }
 
 // 获取所有GET参数值
-func (ctx Context) Querys() url.Values {
+func (ctx *Context) Querys() url.Values {
 	return ctx.Request.URL.Query()
 }
 
 // 获取某个GET参数值
-func (ctx Context) Query(key string) (string, bool) {
+func (ctx *Context) Query(key string) (string, bool) {
 	if len(ctx.Request.URL.Query()[key]) == 0 {
 		return "", false
 	}
@@ -148,7 +148,7 @@ func (ctx Context) Query(key string) (string, bool) {
 }
 
 // 获取某个GET参数值的string类型
-func (ctx Context) QueryValue(key string) string {
+func (ctx *Context) QueryValue(key string) string {
 	if len(ctx.Request.URL.Query()[key]) == 0 {
 		return ""
 	}
@@ -156,7 +156,7 @@ func (ctx Context) QueryValue(key string) string {
 }
 
 // 获取所有POST参数值
-func (ctx Context) Posts() url.Values {
+func (ctx *Context) Posts() url.Values {
 	err := ctx.parseBody()
 	if err != nil {
 		return url.Values{}
@@ -165,7 +165,7 @@ func (ctx Context) Posts() url.Values {
 }
 
 // 获取某个POST参数值
-func (ctx Context) Post(key string) (string, bool) {
+func (ctx *Context) Post(key string) (string, bool) {
 	if err := ctx.parseBody(); err != nil {
 		return "", false
 	}
@@ -177,7 +177,7 @@ func (ctx Context) Post(key string) (string, bool) {
 }
 
 // 获取某个POST参数值的string类型
-func (ctx Context) PostValue(key string) string {
+func (ctx *Context) PostValue(key string) string {
 	if err := ctx.parseBody(); err != nil {
 		return ""
 	}

@@ -22,7 +22,7 @@ type AppConfig struct {
 // 框架实例
 type App struct {
 	Config      AppConfig          // 配置
-	Router      RouterGroup        // 路由器
+	Router      *RouterGroup       // 路由器
 	httpRouter  *httprouter.Router // httprouter 实例
 	contextPool sync.Pool          // context池
 }
@@ -30,17 +30,18 @@ type App struct {
 // 返回一个基本配置的框架实例
 func New() *App {
 	var config AppConfig
-	config.FixPath = true
+	config.FixPath = true // 自动修复URL路径
 	// config.Recovery = true
 	var app App
-	app.httpRouter = httprouter.New()
+	app.httpRouter = httprouter.New() // 创建httprouter实例
 	app.httpRouter.RedirectTrailingSlash = config.RedirectTrailingSlash
 	app.httpRouter.RedirectFixedPath = config.FixPath
 	app.httpRouter.HandleOPTIONS = config.HandleOPTIONS
-	app.httpRouter.PanicHandler = app.eventHandlerPanic
-	app.httpRouter.NotFound = http.HandlerFunc(app.eventNotFound)
-	app.httpRouter.MethodNotAllowed = http.HandlerFunc(app.eventMethodNotAllowed)
-	app.Router = RouterGroup{
+	app.httpRouter.PanicHandler = app.eventHandlerPanic                           // panic事件处理器
+	app.httpRouter.NotFound = http.HandlerFunc(app.eventNotFound)                 // 404事件处理器
+	app.httpRouter.HandleMethodNotAllowed = true                                  // 处理405事件
+	app.httpRouter.MethodNotAllowed = http.HandlerFunc(app.eventMethodNotAllowed) // 405事件处理器
+	app.Router = &RouterGroup{
 		app: &app,
 	}
 	// 定义context池
