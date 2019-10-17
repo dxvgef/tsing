@@ -6,8 +6,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"runtime"
-	"strconv"
 	"strings"
 
 	"github.com/julienschmidt/httprouter"
@@ -28,37 +26,6 @@ type Context struct {
 // 继续执行下一个中间件或处理器
 func (ctx *Context) Next() {
 	ctx.next = true
-}
-
-// 触发一个500事件，使用此方法是为了精准记录触发事件的源码文件及行号
-func (ctx *Context) Event(err error) error {
-	if err != nil && ctx.app.Config.EventHandler != nil {
-		event := Event{
-			Status:         500,
-			Message:        err,
-			ResponseWriter: ctx.ResponseWriter,
-			Request:        ctx.Request,
-		}
-		if ctx.app.Config.EventTrace == true {
-			_, file, line, _ := runtime.Caller(1)
-			l := strconv.Itoa(line)
-			if ctx.app.Config.EventShortPath == true {
-				short := file
-				fileLen := len(file)
-				for i := fileLen - 1; i > 0; i-- {
-					if file[i] == '/' {
-						short = file[i+1:]
-						break
-					}
-				}
-				file = short
-			}
-			event.Trace = append(event.Trace, file+":"+l)
-		}
-		ctx.app.Config.EventHandler(&event)
-	}
-	// 不再将传入的error返回，避免再触发handle500函数
-	return nil
 }
 
 // 在ctx里存储值，如果key存在则替换值
