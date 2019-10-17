@@ -69,13 +69,18 @@ func (r *RouterGroup) FILE(url string, local string) {
 }
 
 // GROUP 路由组
-func (r *RouterGroup) GROUP(path string, middlewareHandlers ...Handler) *RouterGroup {
-	r.basePath = r.basePath + path
-	// 加入当前传入的钩子
-	for k := range middlewareHandlers {
-		r.handlers = append(r.handlers, middlewareHandlers[k])
+func (r *RouterGroup) GROUP(path string, handlers ...Handler) *RouterGroup {
+	// 生成一个新的路由组
+	group := RouterGroup{
+		handlers: r.handlers,        // 初始处理器为上级路由组的处理器
+		basePath: r.basePath + path, // 拼接路由组的基本路径
+		app:      r.app,
 	}
-	return r
+	// 组合上级路由组处理器和当前传入的处理器
+	for k := range handlers {
+		group.handlers = append(group.handlers, handlers[k])
+	}
+	return &group
 }
 
 // GET 路由
