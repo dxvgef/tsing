@@ -14,6 +14,7 @@ type route struct {
 	path   string
 }
 
+// nolint
 var testAPI = []route{
 	{"GET", "/authorizations"},
 	{"GET", "/events"},
@@ -566,6 +567,7 @@ var (
 	tsing       http.Handler
 )
 
+// nolint
 func init() {
 	println("GithubAPI Routes:", len(githubAPI))
 	println("GithubAPI2 Routes:", len(githubAPI2))
@@ -609,10 +611,10 @@ func benchRoutes(b *testing.B, router http.Handler, routes []route) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		for _, route := range routes {
-			r.Method = route.method
-			r.RequestURI = route.path
-			u.Path = route.path
+		for k := range routes {
+			r.Method = routes[k].method
+			r.RequestURI = routes[k].path
+			u.Path = routes[k].path
 			u.RawQuery = rq
 			router.ServeHTTP(w, r)
 		}
