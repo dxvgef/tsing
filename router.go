@@ -42,10 +42,10 @@ func (r *RouterGroup) Handle(method string, path string, handler Handler, middle
 
 // PATH 定义路由到目录，不支持路由组和中间件
 func (r *RouterGroup) PATH(url string, local string, list bool) {
-	if strings.HasPrefix(url, "/") == false {
+	if !strings.HasPrefix(url, "/") {
 		url = "/" + url
 	}
-	if strings.HasSuffix(url, "/") == false {
+	if !strings.HasSuffix(url, "/") {
 		url += "/"
 	}
 	url += "*filepath"
@@ -54,7 +54,7 @@ func (r *RouterGroup) PATH(url string, local string, list bool) {
 	r.app.httpRouter.GET(url, func(resp http.ResponseWriter, req *http.Request, params httprouter.Params) {
 		// 如果请求的是目录，而判断是否允许列出目录
 		if params.ByName("filepath") == "" || params.ByName("filepath")[len(params.ByName("filepath"))-1:] == "/" {
-			if list == false {
+			if !list {
 				// 如果不允许列出目录，则触发404事件处理
 				r.app.eventNotFound(resp, req)
 				return
@@ -142,7 +142,7 @@ func (r *RouterGroup) execute(resp http.ResponseWriter, req *http.Request, param
 	ctx.Request = req
 	ctx.next = false
 	ctx.parsed = false
-	ctx.routerParams = httprouter.Params{}
+	ctx.routerParams = params
 
 	var err error
 
@@ -150,7 +150,7 @@ func (r *RouterGroup) execute(resp http.ResponseWriter, req *http.Request, param
 	for k := range r.handlers {
 		if err = r.handlers[k](ctx); err != nil {
 			var trigger _Trigger
-			if r.app.Config.EventTrigger == true {
+			if r.app.Config.EventTrigger {
 				trigger = getFuncInfo(handler)
 			}
 			r.app.eventHandlerError(resp, req, trigger, err)
@@ -158,7 +158,7 @@ func (r *RouterGroup) execute(resp http.ResponseWriter, req *http.Request, param
 			r.app.contextPool.Put(ctx)
 			return
 		}
-		if ctx.next == false {
+		if !ctx.next {
 			// 将ctx放回池中
 			r.app.contextPool.Put(ctx)
 			return
@@ -168,18 +168,18 @@ func (r *RouterGroup) execute(resp http.ResponseWriter, req *http.Request, param
 
 	// 执行当前路由中间件
 	for k := range middlewares {
-		var err error
-		if err = middlewares[k](ctx); err != nil {
+		var errTmp error
+		if errTmp = middlewares[k](ctx); errTmp != nil {
 			var trigger _Trigger
-			if r.app.Config.EventTrigger == true {
+			if r.app.Config.EventTrigger {
 				trigger = getFuncInfo(handler)
 			}
-			r.app.eventHandlerError(resp, req, trigger, err)
+			r.app.eventHandlerError(resp, req, trigger, errTmp)
 			// 将ctx放回池中
 			r.app.contextPool.Put(ctx)
 			return
 		}
-		if ctx.next == false {
+		if !ctx.next {
 			// 将ctx放回池中
 			r.app.contextPool.Put(ctx)
 			return
@@ -190,7 +190,7 @@ func (r *RouterGroup) execute(resp http.ResponseWriter, req *http.Request, param
 	// 执行当前路由处理器
 	if err = handler(ctx); err != nil {
 		var trigger _Trigger
-		if r.app.Config.EventTrigger == true {
+		if r.app.Config.EventTrigger {
 			trigger = getFuncInfo(handler)
 		}
 		r.app.eventHandlerError(resp, req, trigger, err)
