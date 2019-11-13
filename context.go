@@ -56,7 +56,11 @@ func (ctx *Context) RemoteIP() string {
 	} else if ip := ctx.Request.Header.Get("X-Real-IP"); ip != "" {
 		ra = ip
 	} else {
-		ra, _, _ = net.SplitHostPort(ra)
+		var err error
+		ra, _, err = net.SplitHostPort(ra)
+		if err != nil {
+			return ""
+		}
 	}
 	return ra
 }
@@ -64,7 +68,7 @@ func (ctx *Context) RemoteIP() string {
 // 解析body数据
 func (ctx *Context) parseBody() error {
 	// 判断是否已经解析过body
-	if ctx.parsed == true {
+	if ctx.parsed {
 		return nil
 	}
 	if strings.HasPrefix(ctx.Request.Header.Get("Content-Type"), "multipart/form-data") {

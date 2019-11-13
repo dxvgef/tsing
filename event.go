@@ -2,7 +2,6 @@ package tsing
 
 import (
 	"errors"
-	"net"
 	"net/http"
 	"reflect"
 	"runtime"
@@ -57,26 +56,24 @@ func (d *App) eventHandlerPanic(resp http.ResponseWriter, req *http.Request, err
 		event.Message = errors.New(t)
 	case error:
 		event.Message = t
-	case *net.OpError:
-		event.Message = t.Err
 	default:
 		event.Message = errors.New("未知错误消息类型")
 	}
 
-	if d.Config.EventTrace == true {
+	if d.Config.EventTrace {
 		goRoot := runtime.GOROOT()
 		for skip := 0; ; skip++ {
 			funcPtr, file, line, ok := runtime.Caller(skip)
 			// 排除trace中的标准包信息
-			if strings.HasPrefix(file, goRoot) == false {
+			if !strings.HasPrefix(file, goRoot) {
 				event.Trace = append(event.Trace, file+":"+strconv.Itoa(line))
 			}
-			if skip == 3 && d.Config.EventTrigger == true {
+			if skip == 3 && d.Config.EventTrigger {
 				event.Trigger.File = file
 				event.Trigger.Line = line
 				event.Trigger.Func = runtime.FuncForPC(funcPtr).Name()
 			}
-			if ok == false {
+			if !ok {
 				break
 			}
 		}
@@ -98,15 +95,15 @@ func (d *App) eventHandlerError(resp http.ResponseWriter, req *http.Request, tri
 		Trigger:        trigger,
 	}
 
-	if d.Config.EventTrace == true {
+	if d.Config.EventTrace {
 		goRoot := runtime.GOROOT()
 		for skip := 0; ; skip++ {
 			_, file, line, ok := runtime.Caller(skip)
 			// 排除trace中的标准包信息
-			if strings.HasPrefix(file, goRoot) == false {
+			if !strings.HasPrefix(file, goRoot) {
 				event.Trace = append(event.Trace, file+":"+strconv.Itoa(line))
 			}
-			if ok == false {
+			if !ok {
 				break
 			}
 		}

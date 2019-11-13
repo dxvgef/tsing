@@ -9,14 +9,14 @@ import (
 
 // 框架配置
 type AppConfig struct {
+	EventHandler EventHandler // 事件处理器，如果未传值则认为不记录事件
 	// Recovery              bool         // 启用自动恢复
-	RedirectTrailingSlash bool         // 自动重定向到结尾带有或不带有斜杠的URL
-	FixPath               bool         // 清理URL中的不规范路径分隔符，例如//和../
-	HandleOPTIONS         bool         // 自定响应OPTIONS请求
-	EventHandler          EventHandler // 事件处理器，如果未传值则认为不记录事件
-	EventTrigger          bool         // 记录事件的触发信息(影响性能)
-	EventTrace            bool         // 启用事件的跟踪信息(影响性能)
-	EventShortPath        bool         // 使用事件触发信息的短文件名
+	RedirectTrailingSlash bool // 自动重定向到结尾带有或不带有斜杠的URL
+	FixPath               bool // 清理URL中的不规范路径分隔符，例如//和../
+	HandleOPTIONS         bool // 自定响应OPTIONS请求
+	EventTrigger          bool // 记录事件的触发信息(影响性能)
+	EventTrace            bool // 启用事件的跟踪信息(影响性能)
+	EventShortPath        bool // 使用事件触发信息的短文件名
 }
 
 // 框架实例
