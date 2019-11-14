@@ -41,7 +41,7 @@ func getFuncInfo(obj interface{}) _Trigger {
 }
 
 // 触发handler的panic事件
-func (d *App) eventHandlerPanic(resp http.ResponseWriter, req *http.Request, err interface{}) {
+func (d *App) eventPanic(resp http.ResponseWriter, req *http.Request, err interface{}) {
 	if d.Config.EventHandler == nil {
 		return
 	}
