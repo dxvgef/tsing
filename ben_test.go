@@ -588,7 +588,7 @@ func init() {
 
 	calcMem("Tsing", func() {
 		app := New()
-		// app.EnablePanicHandler()
+		app.DisablePanicHandler()
 		handler := func(ctx *Context) error {
 			ctx.ResponseWriter.WriteHeader(204)
 			return nil
