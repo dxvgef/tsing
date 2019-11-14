@@ -31,12 +31,12 @@ type App struct {
 func New() *App {
 	var config AppConfig
 	config.FixPath = true // 自动修复URL路径
-	// config.Recovery = true
 	var app App
 	app.httpRouter = httprouter.New() // 创建httprouter实例
 	app.httpRouter.RedirectTrailingSlash = config.RedirectTrailingSlash
 	app.httpRouter.RedirectFixedPath = config.FixPath
 	app.httpRouter.HandleOPTIONS = config.HandleOPTIONS
+	app.httpRouter.PanicHandler = app.eventPanic                                  // panic事件处理器
 	app.httpRouter.NotFound = http.HandlerFunc(app.eventNotFound)                 // 404事件处理器
 	app.httpRouter.HandleMethodNotAllowed = true                                  // 处理405事件
 	app.httpRouter.MethodNotAllowed = http.HandlerFunc(app.eventMethodNotAllowed) // 405事件处理器
@@ -50,14 +50,14 @@ func New() *App {
 	return &app
 }
 
-// 启用panic处理器，默认未启用
+// 启用panic处理器，默认已启用
 // panic处理器会使框架抛出panic事件，并自动恢复，防止进程退出
 // 注意，启用此功能会使性能明显下降
 func (d *App) EnablePanicHandler() {
 	d.httpRouter.PanicHandler = d.eventPanic
 }
 
-// 禁用panic处理器，默认禁用
+// 禁用panic处理器
 func (d *App) DisablePanicHandler() {
 	d.httpRouter.PanicHandler = nil
 }
