@@ -13,12 +13,10 @@ import (
 
 // 连接上下文
 type Context struct {
-	app     *App
-	Request *http.Request
-	// responseWriter customResponseWriter  // 自定义response
-	// ResponseWriter _CustomResponseWriter // 用自定义resp替代http.resp
+	app            *App
+	Request        *http.Request
 	ResponseWriter http.ResponseWriter
-	routerParams   httprouter.Params // 路由参数
+	routeParams    httprouter.Params // 路由参数
 	next           bool              // 继续执行下一个中间件或处理器
 	parsed         bool              // 是否已解析body
 }
@@ -26,6 +24,13 @@ type Context struct {
 // 继续执行下一个中间件或处理器
 func (ctx *Context) Next() {
 	ctx.next = true
+}
+
+// 如果启用了ErrorEvent，执行此函数会触发一个error事件，并记录触发信息
+// 此操作会接替handler的返回值(error)处理
+func (ctx *Context) Error(err error) error {
+	ctx.app.contextErrorHandler(ctx, err)
+	return nil
 }
 
 // 在ctx里存储值，如果key存在则替换值
@@ -87,14 +92,14 @@ func (ctx *Context) parseBody() error {
 
 // 获取所有路由参数值
 func (ctx *Context) RouteValues() []httprouter.Param {
-	return ctx.routerParams
+	return ctx.routeParams
 }
 
 // 获取路由参数值
 func (ctx *Context) Param(key string) (string, bool) {
-	for i := range ctx.routerParams {
-		if ctx.routerParams[i].Key == key {
-			return ctx.routerParams[i].Value, false
+	for i := range ctx.routeParams {
+		if ctx.routeParams[i].Key == key {
+			return ctx.routeParams[i].Value, false
 		}
 	}
 	return "", true
@@ -102,7 +107,7 @@ func (ctx *Context) Param(key string) (string, bool) {
 
 // 获取某个路由参数值的string类型
 func (ctx *Context) ParamValue(key string) string {
-	return ctx.routerParams.ByName(key)
+	return ctx.routeParams.ByName(key)
 }
 
 // 获取所有GET参数值
