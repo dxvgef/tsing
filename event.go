@@ -11,10 +11,10 @@ import (
 
 // 事件结构
 type Event struct {
-	Status         int      // HTTP状态码
-	Message        error    // 消息文本
-	Trigger        _Trigger // 触发信息
-	Trace          []string // 跟踪信息
+	Status         int       // HTTP状态码
+	Message        error     // 消息文本
+	Trigger        *_Trigger // 触发信息
+	Trace          []string  // 跟踪信息
 	ResponseWriter http.ResponseWriter
 	Request        *http.Request
 }
@@ -30,25 +30,120 @@ type _Trigger struct {
 type EventHandler func(*Event)
 
 // 获得函数信息
-func getFuncInfo(obj interface{}) _Trigger {
+func getFuncInfo(obj interface{}) *_Trigger {
 	ptr := reflect.ValueOf(obj).Pointer()
 	file, line := runtime.FuncForPC(ptr).FileLine(ptr)
-	return _Trigger{
+	return &_Trigger{
 		Func: runtime.FuncForPC(ptr).Name(),
 		File: file,
 		Line: line,
 	}
 }
 
-// 触发handler的panic事件
-func (d *App) eventPanic(resp http.ResponseWriter, req *http.Request, err interface{}) {
-	if d.Config.EventHandler == nil {
+// 路由自动执行handler函数得到错误的处理器
+func (app *App) funcErrorHandler(resp http.ResponseWriter, req *http.Request, trigger *_Trigger, err error) {
+	if err == nil {
 		return
 	}
+
 	event := Event{
 		Request:        req,
 		ResponseWriter: resp,
 		Status:         500,
+		Message:        err,
+		Trigger:        trigger,
+	}
+
+	// 如果开启了trace
+	if app.Config.Trace {
+		goRoot := runtime.GOROOT()
+		for skip := 0; ; skip++ {
+			funcPtr, file, line, ok := runtime.Caller(skip)
+			// 使用短路径
+			if app.Config.ShortPath {
+				event.Trigger.File = strings.TrimPrefix(file, app.Config.RootPath)
+			} else {
+				event.Trigger.File = file
+			}
+			// 排除trace中的标准包信息
+			if !strings.HasPrefix(file, goRoot) {
+				event.Trace = append(event.Trace, file+":"+strconv.Itoa(line)+":"+runtime.FuncForPC(funcPtr).Name())
+			}
+
+			if !ok {
+				break
+			}
+		}
+	}
+	app.Config.EventHandler(&event)
+}
+
+// context的Error()触发的错误处理器
+func (app *App) contextErrorHandler(ctx *Context, err error) {
+	if err == nil || app.Config.EventHandler == nil || !app.Config.ErrorEvent {
+		return
+	}
+
+	event := Event{
+		Request:        ctx.Request,
+		ResponseWriter: ctx.ResponseWriter,
+		Status:         500,
+		Message:        err,
+		Trigger:        nil,
+	}
+
+	// 如果启用了trigger
+	if ctx.app.Config.Trigger {
+		funcPtr, file, line, ok := runtime.Caller(2)
+		if ok {
+			var trigger _Trigger
+			// 使用短路径
+			if ctx.app.Config.ShortPath {
+				trigger.File = strings.TrimPrefix(file, ctx.app.Config.RootPath)
+			} else {
+				trigger.File = file
+			}
+			trigger.Line = line
+			trigger.Func = runtime.FuncForPC(funcPtr).Name()
+			event.Trigger = &trigger
+		}
+	}
+
+	// 如果开启了trace
+	if ctx.app.Config.Trace {
+		goRoot := runtime.GOROOT()
+		for skip := 0; ; skip++ {
+			funcPtr, file, line, ok := runtime.Caller(skip)
+			// 使用短路径
+			if ctx.app.Config.ShortPath {
+				event.Trigger.File = strings.TrimPrefix(file, ctx.app.Config.RootPath)
+			} else {
+				event.Trigger.File = file
+			}
+			// 排除trace中的标准包信息
+			if !strings.HasPrefix(file, goRoot) {
+				event.Trace = append(event.Trace, file+":"+strconv.Itoa(line)+":"+runtime.FuncForPC(funcPtr).Name())
+			}
+
+			if !ok {
+				break
+			}
+		}
+	}
+	ctx.app.Config.EventHandler(&event)
+}
+
+// handler的panic处理器
+func (app *App) panicHandler(resp http.ResponseWriter, req *http.Request, err interface{}) {
+	if !app.Config.Recover && app.Config.EventHandler == nil {
+		return
+	}
+
+	event := Event{
+		Request:        req,
+		ResponseWriter: resp,
+		Status:         500,
+		Trigger:        nil,
 	}
 
 	switch t := err.(type) {
@@ -60,60 +155,47 @@ func (d *App) eventPanic(resp http.ResponseWriter, req *http.Request, err interf
 		event.Message = errors.New("未知错误消息类型")
 	}
 
-	if d.Config.EventTrace {
+	// 如果启用事件的触发信息
+	if app.Config.Trigger {
+		funcPtr, file, line, ok := runtime.Caller(3)
+		if ok {
+			var trigger _Trigger
+			if app.Config.ShortPath {
+				file = strings.TrimPrefix(file, app.Config.RootPath)
+			}
+			trigger.File = file
+			trigger.Line = line
+			trigger.Func = runtime.FuncForPC(funcPtr).Name()
+			event.Trigger = &trigger
+		}
+	}
+
+	// 如果启用事件的跟踪信息
+	if app.Config.Trace {
 		goRoot := runtime.GOROOT()
 		for skip := 0; ; skip++ {
 			funcPtr, file, line, ok := runtime.Caller(skip)
+			if !ok {
+				break
+			}
+			if app.Config.ShortPath {
+				file = strings.TrimPrefix(file, app.Config.RootPath)
+			}
 			// 排除trace中的标准包信息
 			if !strings.HasPrefix(file, goRoot) {
 				event.Trace = append(event.Trace, file+":"+strconv.Itoa(line))
 			}
-			if skip == 3 && d.Config.EventTrigger {
-				event.Trigger.File = file
-				event.Trigger.Line = line
-				event.Trigger.Func = runtime.FuncForPC(funcPtr).Name()
-			}
-			if !ok {
-				break
-			}
+			event.Trigger.File = file
+			event.Trigger.Line = line
+			event.Trigger.Func = runtime.FuncForPC(funcPtr).Name()
 		}
 	}
 
-	d.Config.EventHandler(&event)
+	app.Config.EventHandler(&event)
 }
 
-// 触发handler的error事件
-func (d *App) eventHandlerError(resp http.ResponseWriter, req *http.Request, trigger _Trigger, err error) {
-	if d.Config.EventHandler == nil {
-		return
-	}
-	event := Event{
-		Request:        req,
-		ResponseWriter: resp,
-		Status:         http.StatusInternalServerError,
-		Message:        err,
-		Trigger:        trigger,
-	}
-
-	if d.Config.EventTrace {
-		goRoot := runtime.GOROOT()
-		for skip := 0; ; skip++ {
-			_, file, line, ok := runtime.Caller(skip)
-			// 排除trace中的标准包信息
-			if !strings.HasPrefix(file, goRoot) {
-				event.Trace = append(event.Trace, file+":"+strconv.Itoa(line))
-			}
-			if !ok {
-				break
-			}
-		}
-	}
-
-	d.Config.EventHandler(&event)
-}
-
-// 触发404事件
-func (d *App) eventNotFound(resp http.ResponseWriter, req *http.Request) {
+// 404事件处理器
+func (d *App) notFoundHandler(resp http.ResponseWriter, req *http.Request) {
 	if d.Config.EventHandler == nil {
 		return
 	}
@@ -125,8 +207,8 @@ func (d *App) eventNotFound(resp http.ResponseWriter, req *http.Request) {
 	})
 }
 
-// 触发405事件
-func (d *App) eventMethodNotAllowed(resp http.ResponseWriter, req *http.Request) {
+// 405事件处理器
+func (d *App) methodNotAllowedHandler(resp http.ResponseWriter, req *http.Request) {
 	if d.Config.EventHandler == nil {
 		return
 	}
