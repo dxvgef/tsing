@@ -13,6 +13,7 @@ type Config struct {
 	RootPath              string // 项目根路径，用于缩短路径
 	RedirectTrailingSlash bool   // 自动重定向到结尾带有或不带有斜杠的URL
 	HandleOPTIONS         bool   // 自定响应OPTIONS请求
+	FixPath               bool   // 修复路径
 	Recover               bool   // 自动恢复panic
 
 	EventHandler          EventHandler // 事件处理器，如果未传值则不触发任何事件
@@ -40,6 +41,7 @@ func New(config *Config) *App {
 	app.httpRouter = httprouter.New()
 	app.httpRouter.HandleOPTIONS = config.HandleOPTIONS
 	app.httpRouter.RedirectTrailingSlash = config.RedirectTrailingSlash
+	app.httpRouter.RedirectFixedPath = config.FixPath
 
 	// 如果注册了事件处理器
 	if config.EventHandler != nil {
