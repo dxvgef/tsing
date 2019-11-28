@@ -150,16 +150,20 @@ func (r *RouterGroup) execute(resp http.ResponseWriter, req *http.Request, param
 	// 遍历执行路由组的处理器
 	for k := range r.handlers {
 		if err = r.handlers[k](ctx); err != nil {
-			// 生成事件触发信息
-			if r.app.Config.EventHandler != nil && r.app.Config.ErrorEvent && r.app.Config.Trigger {
-				trigger = getFuncInfo(r.handlers[k])
-				if r.app.Config.ShortPath {
-					trigger.File = strings.TrimPrefix(trigger.File, r.app.Config.RootPath)
+			if r.app.Config.EventHandler != nil && r.app.Config.ErrorEvent {
+				if r.app.Config.Trigger {
+					trigger = getFuncInfo(r.handlers[k])
+					if r.app.Config.ShortPath {
+						trigger.File = strings.TrimPrefix(trigger.File, r.app.Config.RootPath)
+					}
+					r.app.funcErrorHandler(resp, req, trigger, err)
+				} else if r.app.Config.Trace {
+					r.app.funcErrorHandler(resp, req, nil, err)
 				}
-				r.app.funcErrorHandler(resp, req, trigger, err)
 			}
 			// 将ctx放回池中
 			r.app.contextPool.Put(ctx)
+			ctx.next = false
 			return
 		}
 		if !ctx.next {
@@ -174,15 +178,20 @@ func (r *RouterGroup) execute(resp http.ResponseWriter, req *http.Request, param
 	for k := range middlewares {
 		if err = middlewares[k](ctx); err != nil {
 			// 生成事件触发信息
-			if r.app.Config.EventHandler != nil && r.app.Config.ErrorEvent && r.app.Config.Trigger {
-				trigger = getFuncInfo(middlewares[k])
-				if r.app.Config.ShortPath {
-					trigger.File = strings.TrimPrefix(trigger.File, r.app.Config.RootPath)
+			if r.app.Config.EventHandler != nil && r.app.Config.ErrorEvent {
+				if r.app.Config.Trigger {
+					trigger = getFuncInfo(middlewares[k])
+					if r.app.Config.ShortPath {
+						trigger.File = strings.TrimPrefix(trigger.File, r.app.Config.RootPath)
+					}
+					r.app.funcErrorHandler(resp, req, trigger, err)
+				} else if r.app.Config.Trace {
+					r.app.funcErrorHandler(resp, req, nil, err)
 				}
-				r.app.funcErrorHandler(resp, req, trigger, err)
 			}
 			// 将ctx放回池中
 			r.app.contextPool.Put(ctx)
+			ctx.next = false
 			return
 		}
 		if !ctx.next {
@@ -195,12 +204,16 @@ func (r *RouterGroup) execute(resp http.ResponseWriter, req *http.Request, param
 
 	// 执行当前路由处理器
 	if err = handler(ctx); err != nil {
-		if r.app.Config.EventHandler != nil && r.app.Config.ErrorEvent && r.app.Config.Trigger {
-			trigger = getFuncInfo(handler)
-			if r.app.Config.ShortPath {
-				trigger.File = strings.TrimPrefix(trigger.File, r.app.Config.RootPath)
+		if r.app.Config.EventHandler != nil && r.app.Config.ErrorEvent {
+			if r.app.Config.Trigger {
+				trigger = getFuncInfo(handler)
+				if r.app.Config.ShortPath {
+					trigger.File = strings.TrimPrefix(trigger.File, r.app.Config.RootPath)
+				}
+				r.app.funcErrorHandler(resp, req, trigger, err)
+			} else if r.app.Config.Trace {
+				r.app.funcErrorHandler(resp, req, nil, err)
 			}
-			r.app.funcErrorHandler(resp, req, trigger, err)
 		}
 	}
 	// 将ctx放回池中
