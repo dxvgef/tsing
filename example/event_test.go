@@ -14,13 +14,10 @@ func TestEvent(t *testing.T) {
 	log.SetFlags(log.Lshortfile)
 
 	app := tsing.New(&tsing.Config{
-		RootPath:              "/Users/dxvgef/Projects/open/tsing",
 		RedirectTrailingSlash: false,
 		HandleOPTIONS:         false,
 		Recover:               true,
 		ErrorEvent:            true,
-		NotFoundEvent:         true,
-		MethodNotAllowedEvent: true,
 		Trigger:               true,
 		Trace:                 false,
 		ShortPath:             true,
