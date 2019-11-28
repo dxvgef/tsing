@@ -51,7 +51,7 @@ func (app *App) funcErrorHandler(resp http.ResponseWriter, req *http.Request, tr
 		ResponseWriter: resp,
 		Status:         500,
 		Message:        err,
-		Trigger:        trigger,
+		Trigger:        trigger, // 这里不用判断是否开启triger，如果没开启会传入nil
 	}
 
 	// 如果开启了trace
@@ -59,19 +59,16 @@ func (app *App) funcErrorHandler(resp http.ResponseWriter, req *http.Request, tr
 		goRoot := runtime.GOROOT()
 		for skip := 0; ; skip++ {
 			funcPtr, file, line, ok := runtime.Caller(skip)
+			if !ok {
+				break
+			}
 			// 使用短路径
 			if app.Config.ShortPath {
-				event.Trigger.File = strings.TrimPrefix(file, app.Config.RootPath)
-			} else {
-				event.Trigger.File = file
+				file = strings.TrimPrefix(file, app.Config.RootPath)
 			}
 			// 排除trace中的标准包信息
 			if !strings.HasPrefix(file, goRoot) {
 				event.Trace = append(event.Trace, file+":"+strconv.Itoa(line)+":"+runtime.FuncForPC(funcPtr).Name())
-			}
-
-			if !ok {
-				break
 			}
 		}
 	}
@@ -94,18 +91,22 @@ func (app *App) contextErrorHandler(ctx *Context, err error) {
 
 	// 如果启用了trigger
 	if ctx.app.Config.Trigger {
-		funcPtr, file, line, ok := runtime.Caller(2)
-		if ok {
-			var trigger _Trigger
+		if funcPtr, file, line, ok := runtime.Caller(2); ok {
 			// 使用短路径
 			if ctx.app.Config.ShortPath {
-				trigger.File = strings.TrimPrefix(file, ctx.app.Config.RootPath)
-			} else {
-				trigger.File = file
+				file = strings.TrimPrefix(file, ctx.app.Config.RootPath)
 			}
-			trigger.Line = line
-			trigger.Func = runtime.FuncForPC(funcPtr).Name()
-			event.Trigger = &trigger
+			if event.Trigger != nil {
+				event.Trigger.File = file
+				event.Trigger.Line = line
+				event.Trigger.Func = runtime.FuncForPC(funcPtr).Name()
+			} else {
+				var trigger _Trigger
+				trigger.File = file
+				trigger.Line = line
+				trigger.Func = runtime.FuncForPC(funcPtr).Name()
+				event.Trigger = &trigger
+			}
 		}
 	}
 
@@ -114,19 +115,16 @@ func (app *App) contextErrorHandler(ctx *Context, err error) {
 		goRoot := runtime.GOROOT()
 		for skip := 0; ; skip++ {
 			funcPtr, file, line, ok := runtime.Caller(skip)
+			if !ok {
+				break
+			}
 			// 使用短路径
 			if ctx.app.Config.ShortPath {
-				event.Trigger.File = strings.TrimPrefix(file, ctx.app.Config.RootPath)
-			} else {
-				event.Trigger.File = file
+				file = strings.TrimPrefix(file, ctx.app.Config.RootPath)
 			}
 			// 排除trace中的标准包信息
 			if !strings.HasPrefix(file, goRoot) {
 				event.Trace = append(event.Trace, file+":"+strconv.Itoa(line)+":"+runtime.FuncForPC(funcPtr).Name())
-			}
-
-			if !ok {
-				break
 			}
 		}
 	}
@@ -159,14 +157,21 @@ func (app *App) panicHandler(resp http.ResponseWriter, req *http.Request, err in
 	if app.Config.Trigger {
 		funcPtr, file, line, ok := runtime.Caller(3)
 		if ok {
-			var trigger _Trigger
+			// 缩短文件路径
 			if app.Config.ShortPath {
 				file = strings.TrimPrefix(file, app.Config.RootPath)
 			}
-			trigger.File = file
-			trigger.Line = line
-			trigger.Func = runtime.FuncForPC(funcPtr).Name()
-			event.Trigger = &trigger
+			if event.Trigger != nil {
+				event.Trigger.File = file
+				event.Trigger.Line = line
+				event.Trigger.Func = runtime.FuncForPC(funcPtr).Name()
+			} else {
+				var trigger _Trigger
+				trigger.File = file
+				trigger.Line = line
+				trigger.Func = runtime.FuncForPC(funcPtr).Name()
+				event.Trigger = &trigger
+			}
 		}
 	}
 
@@ -174,7 +179,7 @@ func (app *App) panicHandler(resp http.ResponseWriter, req *http.Request, err in
 	if app.Config.Trace {
 		goRoot := runtime.GOROOT()
 		for skip := 0; ; skip++ {
-			funcPtr, file, line, ok := runtime.Caller(skip)
+			_, file, line, ok := runtime.Caller(skip)
 			if !ok {
 				break
 			}
@@ -185,9 +190,6 @@ func (app *App) panicHandler(resp http.ResponseWriter, req *http.Request, err in
 			if !strings.HasPrefix(file, goRoot) {
 				event.Trace = append(event.Trace, file+":"+strconv.Itoa(line))
 			}
-			event.Trigger.File = file
-			event.Trigger.Line = line
-			event.Trigger.Func = runtime.FuncForPC(funcPtr).Name()
 		}
 	}
 
