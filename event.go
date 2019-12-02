@@ -128,6 +128,7 @@ func (app *App) contextErrorHandler(ctx *Context, err error) {
 			}
 		}
 	}
+
 	ctx.app.Config.EventHandler(&event)
 }
 
