@@ -8,7 +8,7 @@
 * [基本示例](https://github.com/dxvgef/tsing/wiki/%E5%9F%BA%E6%9C%AC%E7%A4%BA%E4%BE%8B)
 * [路由和路由组 `tsing.Router`](https://github.com/dxvgef/tsing/wiki/%E8%B7%AF%E7%94%B1%E5%92%8C%E8%B7%AF%E7%94%B1%E7%BB%84)
 * [路由处理器 `tsing.Handler`](https://github.com/dxvgef/tsing/wiki/%E8%B7%AF%E7%94%B1%E5%A4%84%E7%90%86%E5%99%A8)
-* [中间件(钩子)](https://github.com/dxvgef/tsing/wiki/%E8%B7%AF%E7%94%B1%E4%B8%AD%E9%97%B4%E4%BB%B6(%E9%92%A9%E5%AD%90))
+* [路由中间件](https://github.com/dxvgef/tsing/wiki/%E8%B7%AF%E7%94%B1%E4%B8%AD%E9%97%B4%E4%BB%B6)
 * [事件处理器 `tsing.EventHandler`](https://github.com/dxvgef/tsing/wiki/%E4%BA%8B%E4%BB%B6%E5%A4%84%E7%90%86%E5%99%A8)
 * [会话上下文 `tsing.Context`](https://github.com/dxvgef/tsing/wiki/%E4%BC%9A%E8%AF%9D%E4%B8%8A%E4%B8%8B%E6%96%87)
 * [整合`dxvgef/filter`实现请求参数验证](https://github.com/dxvgef/tsing/wiki/%E5%8F%82%E6%95%B0%E5%80%BC%E9%AA%8C%E8%AF%81%E5%8F%8A%E7%B1%BB%E5%9E%8B%E8%BD%AC%E6%8D%A2)
