@@ -57,8 +57,6 @@ func (ctx *Context) Next() {
 					event.Message = errors.New(t)
 				case error:
 					event.Message = t
-				case *net.OpError:
-					event.Message = t.Err
 				default:
 					event.Message = errors.New("处理器出现panic错误")
 				}
@@ -128,7 +126,7 @@ func (ctx *Context) Abort() {
 // 解析body数据
 func (ctx *Context) parseBody() error {
 	// 判断是否已经解析过body
-	if ctx.parsed == true {
+	if ctx.parsed {
 		return nil
 	}
 	if strings.HasPrefix(ctx.Request.Header.Get("Content-Type"), "multipart/form-data") {
