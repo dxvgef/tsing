@@ -32,8 +32,8 @@ func TestMiddleware(t *testing.T) {
 	})
 	router := app.Router.GROUP("", func(ctx *tsing.Context) error {
 		ctx.SetValue("test", "这是路由组中间件传递下来的消息")
-		t.Log("执行了路由组中间件AAA")
 		ctx.Next()
+		t.Log("执行了路由组中间件AAA")
 		return nil
 	}, func(ctx *tsing.Context) error {
 		t.Log("执行了路由组中间件BBB")
