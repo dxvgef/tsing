@@ -1,0 +1,6 @@
+.vscode
+.history
+.idea
+*.iml
+Gopkg.*
+go.sum
