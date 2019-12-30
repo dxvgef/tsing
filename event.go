@@ -3,6 +3,7 @@ package tsing
 import (
 	"errors"
 	"net/http"
+	"path/filepath"
 	"reflect"
 	"runtime"
 	"strconv"
@@ -56,7 +57,7 @@ func (app *App) funcErrorHandler(resp http.ResponseWriter, req *http.Request, tr
 
 	// 如果开启了trace
 	if app.Config.Trace {
-		goRoot := runtime.GOROOT()
+		goRoot := filepath.Clean(runtime.GOROOT())
 		for skip := 0; ; skip++ {
 			funcPtr, file, line, ok := runtime.Caller(skip)
 			if !ok {
@@ -64,7 +65,7 @@ func (app *App) funcErrorHandler(resp http.ResponseWriter, req *http.Request, tr
 			}
 			// 使用短路径
 			if app.Config.ShortPath {
-				file = strings.TrimPrefix(file, app.Config.RootPath)
+				file = strings.TrimPrefix(filepath.Clean(file),filepath.Clean( app.Config.RootPath))
 			}
 			// 排除trace中的标准包信息
 			if !strings.HasPrefix(file, goRoot) {
