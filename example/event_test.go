@@ -37,9 +37,11 @@ func TestEvent(t *testing.T) {
 
 	app.Router.GET("/panic", func(ctx *tsing.Context) error {
 		panic("panic消息")
+		// nolint:govet
 		return nil
 	})
 
+	// nolint:staticcheck
 	r, err := http.NewRequest("GET", "/return", nil)
 	if err != nil {
 		t.Error(err.Error())
