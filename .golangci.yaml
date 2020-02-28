@@ -82,9 +82,9 @@ linters:
     - govet
     - prealloc
     - typecheck
+    - maligned
   enable-all: false
   disable:
-    - maligned
     - unused
   disable-all: false
   presets:
