@@ -5,34 +5,34 @@ import (
 	"sync"
 )
 
-// 32MB
-const defaultMultipartMemory = 32 << 20
-
 // 处理器
 type HandlerFunc func(*Context)
 
 // 处理器链
 type HandlersChain []HandlerFunc
 
+// 引擎配置
+type Config struct {
+	UseRawPath            bool         // 使用url.RawPath查找参数
+	UnescapePathValues    bool         // 反转义路由参数
+	MaxMultipartMemory    int64        // 分配给http.Request的值
+	EventHandler          EventHandler // 事件处理器
+	EventTrace            bool         // 启用事件跟踪
+	EventTraceOnlyProject bool         // 仅跟踪项目源码
+	RootPath              string       // 应用的根路径
+	ErrorEvent            bool         // 启用错误日志
+	EventTraceShortPath   bool         // 事件跟踪使用短路径
+	EventTrigger          bool         // 记录事件触发器
+	Recover               bool         // 自动恢复panic
+}
+
 // 引擎
 type Engine struct {
-	// 路由组
-	*Router
-
-	// 使用url.RawPath查找参数
-	UseRawPath bool
-
-	// 反转义路由参数
-	UnescapePathValues bool
-
-	// 分配给http.Request的值
-	MaxMultipartMemory int64
-
-	// ctx池
-	pool sync.Pool
-
-	// 路由树
-	trees methodTrees
+	*Router                 // 路由器
+	Config      *Config     // 配置
+	contextPool sync.Pool   // context池
+	eventPool   sync.Pool   // event池
+	trees       methodTrees // 路由树
 }
 
 // 添加路由
@@ -63,7 +63,7 @@ func (engine *Engine) addRoute(method, path string, handlers HandlersChain) {
 }
 
 // 创建一个新引擎
-func New() *Engine {
+func New(config *Config) *Engine {
 	// 初始化一个引擎
 	engine := &Engine{
 		// 初始化根路由组
@@ -72,9 +72,10 @@ func New() *Engine {
 			basePath: "/",  // 设置基本路径
 			root:     true, // 标记为根路由组
 		},
-		UseRawPath:         false,
-		UnescapePathValues: true,
-		MaxMultipartMemory: defaultMultipartMemory,
+		Config: config,
+		// UseRawPath:         false,
+		// UnescapePathValues: true,
+		// MaxMultipartMemory: defaultMultipartMemory,
 
 		// 初始化一个路由树，递增值是
 		trees: make(methodTrees, 0, 7),
@@ -84,42 +85,74 @@ func New() *Engine {
 	engine.engine = engine
 
 	// 设置ctx池
-	engine.pool.New = func() interface{} {
+	engine.contextPool.New = func() interface{} {
 		return &Context{engine: engine}
+	}
+
+	// 设置event池
+	if config.EventHandler != nil {
+		engine.eventPool.New = func() interface{} {
+			return &Event{
+				Status:  0,
+				Message: nil,
+				Source:  nil,
+				Trace:   nil,
+			}
+		}
 	}
 
 	return engine
 }
 
+// 创建一个默认引擎
+func Default() *Engine {
+	return New(&Config{
+		RootPath:            getRootPath(),
+		UseRawPath:          false,
+		UnescapePathValues:  true,
+		MaxMultipartMemory:  1 << 20,
+		EventHandler:        nil,
+		EventTrace:          false,
+		ErrorEvent:          false,
+		EventTraceShortPath: false,
+		EventTrigger:        false,
+		Recover:             false,
+	})
+}
+
 // 实现http.Handler接口，并且是连接调度的入口
-func (engine *Engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	// defer func() {
-	// 	if err := recover(); err != nil {
-	// 		log.Println(err)
-	// 	}
-	// }()
+func (engine *Engine) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
+	if engine.Config.Recover {
+		defer func() {
+			err := recover()
+			if err != nil && engine.Config.EventHandler != nil {
+				// 触发panic事件
+				engine.panicEvent(resp, req, err)
+			}
+		}()
+	}
 
 	// 从池中取出一个ctx
-	c := engine.pool.Get().(*Context)
+	ctx := engine.contextPool.Get().(*Context)
 	// 重置取出的ctx
-	c.reset(req, w)
+	ctx.reset(req, resp)
 
 	// 处理请求
-	engine.handleRequest(c)
+	engine.handleRequest(ctx)
 
 	// 将ctx放回池中
-	engine.pool.Put(c)
+	engine.contextPool.Put(ctx)
 }
 
 // 处理连接请求
-func (engine *Engine) handleRequest(c *Context) {
-	httpMethod := c.Request.Method
-	rPath := c.Request.URL.Path
+func (engine *Engine) handleRequest(ctx *Context) {
+	httpMethod := ctx.Request.Method
+	rPath := ctx.Request.URL.Path
 	unescape := false
 
-	if engine.UseRawPath && len(c.Request.URL.RawPath) > 0 {
-		rPath = c.Request.URL.RawPath
-		unescape = engine.UnescapePathValues
+	if engine.Config.UseRawPath && len(ctx.Request.URL.RawPath) > 0 {
+		rPath = ctx.Request.URL.RawPath
+		unescape = engine.Config.UnescapePathValues
 	}
 
 	// 先根据HTTP方法查找节点
@@ -128,41 +161,32 @@ func (engine *Engine) handleRequest(c *Context) {
 			continue
 		}
 		root := engine.trees[k].root
-		value := root.getValue(rPath, c.URLParams, unescape)
+		value := root.getValue(rPath, ctx.URLParams, unescape)
 		if value.handlers != nil {
 			// 为ctx属性赋值
-			c.handlers = value.handlers
-			c.URLParams = value.params
-			c.fullPath = value.fullPath
+			ctx.handlers = value.handlers
+			ctx.URLParams = value.params
+			ctx.fullPath = value.fullPath
 			// 执行ctx中的处理器
-			c.Next()
+			ctx.Next()
 			return
 		}
 		break
 	}
 
-	var err error
 	for k := range engine.trees {
 		if engine.trees[k].method == httpMethod {
 			continue
 		}
-		// 405错误
 		if value := engine.trees[k].root.getValue(rPath, nil, unescape); value.handlers != nil {
-			c.handlers = nil
-			c.ResponseWriter.WriteHeader(http.StatusMethodNotAllowed)
-			_, err = c.ResponseWriter.Write(stringToBytes(http.StatusText(http.StatusMethodNotAllowed)))
-			if err != nil {
-				panic(err.Error())
-			}
+			ctx.handlers = nil
+			// 触发405事件
+			engine.methodNotAllowedEvent(ctx.ResponseWriter, ctx.Request)
 			return
 		}
 	}
 
-	// 404错误
-	c.handlers = nil
-	c.ResponseWriter.WriteHeader(http.StatusNotFound)
-	_, err = c.ResponseWriter.Write(stringToBytes(http.StatusText(http.StatusNotFound)))
-	if err != nil {
-		panic(err.Error())
-	}
+	// 触发404事件
+	ctx.handlers = nil
+	engine.notFoundEvent(ctx.ResponseWriter, ctx.Request)
 }

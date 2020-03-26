@@ -10,7 +10,7 @@ import (
 
 // 上下文
 type Context struct {
-	URLParams      URLParams
+	URLParams      PathParams
 	handlers       HandlersChain
 	ResponseWriter http.ResponseWriter
 	fullPath       string
@@ -39,7 +39,7 @@ func (ctx *Context) parseBody() error {
 		return nil
 	}
 	if strings.HasPrefix(ctx.Request.Header.Get("Content-Type"), "multipart/form-data") {
-		if err := ctx.Request.ParseMultipartForm(http.DefaultMaxHeaderBytes); err != nil {
+		if err := ctx.Request.ParseMultipartForm(ctx.engine.Config.MaxMultipartMemory); err != nil {
 			return err
 		}
 	} else {
@@ -89,7 +89,8 @@ func (ctx *Context) GetValue(key interface{}) interface{} {
 // 向客户端发送重定向响应
 func (ctx *Context) Redirect(code int, url string) {
 	if code < 300 || code > 308 {
-		panic("The status code can only be 30x")
+		ctx.engine.panicEvent(ctx.ResponseWriter, ctx.Request, "The status code can only be 30x")
+		return
 	}
 	ctx.ResponseWriter.Header().Set("Location", url)
 	ctx.ResponseWriter.WriteHeader(code)

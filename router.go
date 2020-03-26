@@ -44,7 +44,7 @@ func (router *Router) calculateAbsolutePath(path string) string {
 func (router *Router) combineHandlers(handlers HandlersChain) HandlersChain {
 	finalSize := len(router.Handlers) + len(handlers)
 	if finalSize >= int(abortIndex) {
-		panic("too many handlers")
+		panic("Too many handlers")
 	}
 	mergedHandlers := make(HandlersChain, finalSize)
 	copy(mergedHandlers, router.Handlers)
