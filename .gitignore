@@ -4,3 +4,4 @@
 *.iml
 Gopkg.*
 go.sum
+.golangci.yaml
