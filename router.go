@@ -1,221 +1,141 @@
 package tsing
 
 import (
+	"math"
 	"net/http"
-	"os"
-	"strings"
-
-	"github.com/julienschmidt/httprouter"
+	"regexp"
 )
 
-// 路由处理器
-type Handler func(*Context) error
+// 中止索引
+const abortIndex int8 = math.MaxInt8 / 2
+
+// 路由组接口
+type RouterInterface interface {
+	Append(...HandlerFunc) RouterInterface
+	Handle(string, string, ...HandlerFunc) RouterInterface
+	Any(string, ...HandlerFunc) RouterInterface
+	GET(string, ...HandlerFunc) RouterInterface
+	POST(string, ...HandlerFunc) RouterInterface
+	DELETE(string, ...HandlerFunc) RouterInterface
+	PATCH(string, ...HandlerFunc) RouterInterface
+	PUT(string, ...HandlerFunc) RouterInterface
+	OPTIONS(string, ...HandlerFunc) RouterInterface
+	HEAD(string, ...HandlerFunc) RouterInterface
+
+	// StaticFile(string, string) RouterInterface
+	// Static(string, string) RouterInterface
+	// StaticFS(string, http.FileSystem) RouterInterface
+}
 
 // 路由组
-type RouterGroup struct {
-	handlers []Handler // 处理器
-	basePath string    // 基路径
-	app      *App      // 调度器
+type Router struct {
+	Handlers HandlersChain
+	basePath string
+	engine   *Engine
+	root     bool
 }
 
-// GROUP 路由组
-func (r *RouterGroup) GROUP(path string, handlers ...Handler) *RouterGroup {
-	// 生成一个新的路由组
-	group := RouterGroup{
-		handlers: r.handlers,        // 初始处理器为上级路由组的处理器
-		basePath: r.basePath + path, // 拼接路由组的基本路径
-		app:      r.app,
+// 计算绝对路径
+func (router *Router) calculateAbsolutePath(path string) string {
+	return joinPaths(router.basePath, path)
+}
+
+// 合并处理器
+func (router *Router) combineHandlers(handlers HandlersChain) HandlersChain {
+	finalSize := len(router.Handlers) + len(handlers)
+	if finalSize >= int(abortIndex) {
+		panic("too many handlers")
 	}
-	// 组合上级路由组处理器和当前传入的处理器
-	for k := range handlers {
-		group.handlers = append(group.handlers, handlers[k])
+	mergedHandlers := make(HandlersChain, finalSize)
+	copy(mergedHandlers, router.Handlers)
+	copy(mergedHandlers[len(router.Handlers):], handlers)
+	return mergedHandlers
+}
+
+// 获得路由组对象
+func (router *Router) getGroup() RouterInterface {
+	if router.root {
+		return router.engine
 	}
-	return &group
+	return router
 }
 
-// Handle 路由
-func (r *RouterGroup) Handle(method string, path string, handler Handler, middlewareHandlers ...Handler) {
-	r.app.httpRouter.Handle(method, r.basePath+path, func(resp http.ResponseWriter, req *http.Request, params httprouter.Params) {
-		r.execute(resp, req, params, handler, middlewareHandlers)
-	})
+// 添加处理器
+func (router *Router) Append(handlers ...HandlerFunc) RouterInterface {
+	router.Handlers = append(router.Handlers, handlers...)
+	return router.getGroup()
 }
 
-// PATH 定义路由到目录，不支持路由组和中间件
-func (r *RouterGroup) PATH(url string, local string, list bool) {
-	if !strings.HasPrefix(url, "/") {
-		url = "/" + url
+// 定义路由组
+func (router *Router) Group(path string, handlers ...HandlerFunc) *Router {
+	return &Router{
+		Handlers: router.combineHandlers(handlers),
+		basePath: router.calculateAbsolutePath(path),
+		engine:   router.engine,
 	}
-	if !strings.HasSuffix(url, "/") {
-		url += "/"
+}
+
+// 处理路由
+func (router *Router) handle(method, path string, handlers HandlersChain) RouterInterface {
+	absolutePath := router.calculateAbsolutePath(path)     // 计算绝对路径
+	handlers = router.combineHandlers(handlers)            // 合并处理器
+	router.engine.addRoute(method, absolutePath, handlers) // 添加路由
+	return router.getGroup()
+}
+
+// 注册自定义HTTP方法的路由
+func (router *Router) Handle(method, path string, handlers ...HandlerFunc) RouterInterface {
+	if matches, err := regexp.MatchString("^[A-Z]+$", method); !matches || err != nil {
+		panic("HTTP method " + method + " is not valid")
 	}
-	url += "*filepath"
-
-	// 使用GET方法模拟httprouter.ServeFiles()，防止其内部直接输出404消息给客户端
-	r.app.httpRouter.GET(url, func(resp http.ResponseWriter, req *http.Request, params httprouter.Params) {
-		// 如果请求的是目录，而判断是否允许列出目录
-		if params.ByName("filepath") == "" || params.ByName("filepath")[len(params.ByName("filepath"))-1:] == "/" {
-			if !list {
-				// 如果不允许列出目录，则触发404事件处理
-				r.app.notFoundHandler(resp, req)
-				return
-			}
-		}
-
-		// 判断请求的文件是否存在
-		file := local + params.ByName("filepath")
-		if _, err := os.Stat(file); err != nil {
-			r.app.notFoundHandler(resp, req)
-			return
-		}
-		http.ServeFile(resp, req, file)
-	})
+	return router.handle(method, path, handlers)
 }
 
-// FILE 定义路由到文件，不支持路由组和中间件
-func (r *RouterGroup) FILE(url string, local string) {
-	// 使用GET方法模拟httprouter.ServeFiles()，防止其内部直接输出404消息给客户端
-	r.app.httpRouter.GET(url, func(resp http.ResponseWriter, req *http.Request, params httprouter.Params) {
-		if _, err := os.Stat(local); err != nil {
-			r.app.notFoundHandler(resp, req)
-			return
-		}
-		http.ServeFile(resp, req, local)
-	})
+// 注册POST路由
+func (router *Router) POST(path string, handlers ...HandlerFunc) RouterInterface {
+	return router.handle(http.MethodPost, path, handlers)
 }
 
-// GET 路由
-func (r *RouterGroup) GET(path string, handler Handler, middlewareHandlers ...Handler) {
-	r.app.httpRouter.GET(r.basePath+path, func(resp http.ResponseWriter, req *http.Request, params httprouter.Params) {
-		r.execute(resp, req, params, handler, middlewareHandlers)
-	})
+// 注册GET路由
+func (router *Router) GET(path string, handlers ...HandlerFunc) RouterInterface {
+	return router.handle(http.MethodGet, path, handlers)
 }
 
-// POST 路由
-func (r *RouterGroup) POST(path string, handler Handler, middlewareHandlers ...Handler) {
-	r.app.httpRouter.POST(r.basePath+path, func(resp http.ResponseWriter, req *http.Request, params httprouter.Params) {
-		r.execute(resp, req, params, handler, middlewareHandlers)
-	})
+// 注册DELETE路由
+func (router *Router) DELETE(path string, handlers ...HandlerFunc) RouterInterface {
+	return router.handle(http.MethodDelete, path, handlers)
 }
 
-// PUT 路由
-func (r *RouterGroup) PUT(path string, handler Handler, middlewareHandlers ...Handler) {
-	r.app.httpRouter.PUT(r.basePath+path, func(resp http.ResponseWriter, req *http.Request, params httprouter.Params) {
-		r.execute(resp, req, params, handler, middlewareHandlers)
-	})
+// 注册PATCH路由
+func (router *Router) PATCH(path string, handlers ...HandlerFunc) RouterInterface {
+	return router.handle(http.MethodPatch, path, handlers)
 }
 
-// HEAD 路由
-func (r *RouterGroup) HEAD(path string, handler Handler, middlewareHandlers ...Handler) {
-	r.app.httpRouter.HEAD(r.basePath+path, func(resp http.ResponseWriter, req *http.Request, params httprouter.Params) {
-		r.execute(resp, req, params, handler, middlewareHandlers)
-	})
+// 注册PUT路由
+func (router *Router) PUT(path string, handlers ...HandlerFunc) RouterInterface {
+	return router.handle(http.MethodPut, path, handlers)
 }
 
-// PATCH 路由
-func (r *RouterGroup) PATCH(path string, handler Handler, middlewareHandlers ...Handler) {
-	r.app.httpRouter.PATCH(r.basePath+path, func(resp http.ResponseWriter, req *http.Request, params httprouter.Params) {
-		r.execute(resp, req, params, handler, middlewareHandlers)
-	})
+// 注册OPTIONS路由
+func (router *Router) OPTIONS(path string, handlers ...HandlerFunc) RouterInterface {
+	return router.handle(http.MethodOptions, path, handlers)
 }
 
-// DELETE 路由
-func (r *RouterGroup) DELETE(path string, handler Handler, middlewareHandlers ...Handler) {
-	r.app.httpRouter.DELETE(r.basePath+path, func(resp http.ResponseWriter, req *http.Request, params httprouter.Params) {
-		r.execute(resp, req, params, handler, middlewareHandlers)
-	})
+// 注册HEAD路由
+func (router *Router) HEAD(path string, handlers ...HandlerFunc) RouterInterface {
+	return router.handle(http.MethodHead, path, handlers)
 }
 
-// OPTIONS 路由
-func (r *RouterGroup) OPTIONS(path string, handler Handler, middlewareHandlers ...Handler) {
-	r.app.httpRouter.OPTIONS(r.basePath+path, func(resp http.ResponseWriter, req *http.Request, params httprouter.Params) {
-		r.execute(resp, req, params, handler, middlewareHandlers)
-	})
-}
-
-// 执行处理器函数
-func (r *RouterGroup) execute(resp http.ResponseWriter, req *http.Request, params httprouter.Params, handler Handler, middlewares []Handler) {
-	// 当有一个新连接时，从context池里取出一个对象
-	ctx := r.app.contextPool.Get().(*Context)
-	// 重置ctx
-	ctx.app = r.app
-	ctx.ResponseWriter = resp
-	ctx.Request = req
-	ctx.next = false
-	ctx.parsed = false
-	ctx.routeParams = params
-
-	var err error
-	var trigger *_Trigger
-
-	// 遍历执行路由组的处理器
-	for k := range r.handlers {
-		if err = r.handlers[k](ctx); err != nil {
-			if r.app.Config.EventHandler != nil && r.app.Config.ErrorEvent {
-				if r.app.Config.Trigger {
-					trigger = getFuncInfo(r.handlers[k])
-					if r.app.Config.ShortPath {
-						trigger.File = strings.TrimPrefix(trigger.File, r.app.Config.RootPath)
-					}
-					r.app.funcErrorHandler(resp, req, trigger, err)
-				} else if r.app.Config.Trace {
-					r.app.funcErrorHandler(resp, req, nil, err)
-				}
-			}
-			// 将ctx放回池中
-			r.app.contextPool.Put(ctx)
-			ctx.next = false
-			return
-		}
-		if !ctx.next {
-			// 将ctx放回池中
-			r.app.contextPool.Put(ctx)
-			return
-		}
-		ctx.next = false
-	}
-
-	// 执行当前路由中间件
-	for k := range middlewares {
-		if err = middlewares[k](ctx); err != nil {
-			// 生成事件触发信息
-			if r.app.Config.EventHandler != nil && r.app.Config.ErrorEvent {
-				if r.app.Config.Trigger {
-					trigger = getFuncInfo(middlewares[k])
-					if r.app.Config.ShortPath {
-						trigger.File = strings.TrimPrefix(trigger.File, r.app.Config.RootPath)
-					}
-					r.app.funcErrorHandler(resp, req, trigger, err)
-				} else if r.app.Config.Trace {
-					r.app.funcErrorHandler(resp, req, nil, err)
-				}
-			}
-			// 将ctx放回池中
-			r.app.contextPool.Put(ctx)
-			ctx.next = false
-			return
-		}
-		if !ctx.next {
-			// 将ctx放回池中
-			r.app.contextPool.Put(ctx)
-			return
-		}
-		ctx.next = false
-	}
-
-	// 执行当前路由处理器
-	if err = handler(ctx); err != nil {
-		if r.app.Config.EventHandler != nil && r.app.Config.ErrorEvent {
-			if r.app.Config.Trigger {
-				trigger = getFuncInfo(handler)
-				if r.app.Config.ShortPath {
-					trigger.File = strings.TrimPrefix(trigger.File, r.app.Config.RootPath)
-				}
-				r.app.funcErrorHandler(resp, req, trigger, err)
-			} else if r.app.Config.Trace {
-				r.app.funcErrorHandler(resp, req, nil, err)
-			}
-		}
-	}
-	// 将ctx放回池中
-	r.app.contextPool.Put(ctx)
+// 注册所有路由
+func (router *Router) Any(path string, handlers ...HandlerFunc) RouterInterface {
+	router.handle(http.MethodGet, path, handlers)
+	router.handle(http.MethodPost, path, handlers)
+	router.handle(http.MethodPut, path, handlers)
+	router.handle(http.MethodPatch, path, handlers)
+	router.handle(http.MethodHead, path, handlers)
+	router.handle(http.MethodOptions, path, handlers)
+	router.handle(http.MethodDelete, path, handlers)
+	router.handle(http.MethodConnect, path, handlers)
+	router.handle(http.MethodTrace, path, handlers)
+	return router.getGroup()
 }

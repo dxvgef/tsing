@@ -2,58 +2,100 @@ package tsing
 
 import (
 	"context"
-	"errors"
 	"net"
 	"net/http"
 	"net/url"
 	"strings"
-
-	"github.com/julienschmidt/httprouter"
 )
 
-// 连接上下文
+// 上下文
 type Context struct {
-	app            *App
-	Request        *http.Request
+	URLParams      URLParams
+	handlers       HandlersChain
 	ResponseWriter http.ResponseWriter
-	routeParams    httprouter.Params // 路由参数
-	next           bool              // 继续执行下一个中间件或处理器
-	parsed         bool              // 是否已解析body
+	fullPath       string
+	engine         *Engine
+	Request        *http.Request
+	index          int8
+	parsed         bool // 是否已解析body
 }
 
-// 继续执行下一个中间件或处理器
-func (ctx *Context) Next() {
-	ctx.next = true
+var emptyValues url.Values
+
+// 重置Context
+func (ctx *Context) reset(req *http.Request, resp http.ResponseWriter) {
+	ctx.Request = req
+	ctx.ResponseWriter = resp
+	ctx.URLParams = ctx.URLParams[0:0]
+	ctx.handlers = nil
+	ctx.index = -1
+	ctx.fullPath = ""
+	ctx.parsed = false
 }
 
-// 如果启用了ErrorEvent，执行此函数会触发一个error事件，并记录触发信息
-// 此操作会接替handler的返回值(error)处理
-func (ctx *Context) Error(err error) error {
-	ctx.app.contextErrorHandler(ctx, err)
+// 解析body数据
+func (ctx *Context) parseBody() error {
+	if ctx.parsed {
+		return nil
+	}
+	if strings.HasPrefix(ctx.Request.Header.Get("Content-Type"), "multipart/form-data") {
+		if err := ctx.Request.ParseMultipartForm(http.DefaultMaxHeaderBytes); err != nil {
+			return err
+		}
+	} else {
+		if err := ctx.Request.ParseForm(); err != nil {
+			return err
+		}
+	}
+	ctx.parsed = true
 	return nil
 }
 
-// 在ctx里存储值，如果key存在则替换值
-func (ctx *Context) SetValue(key string, value interface{}) {
+// 继续执行下一个处理器
+func (ctx *Context) Next() {
+	ctx.index++
+	for ctx.index < int8(len(ctx.handlers)) {
+		ctx.handlers[ctx.index](ctx)
+		ctx.index++
+	}
+}
+
+// 中止执行
+func (ctx *Context) Abort() {
+	ctx.index = abortIndex
+}
+
+// 是否已中止
+func (ctx *Context) IsAborted() bool {
+	return ctx.index >= abortIndex
+}
+
+// 在Context中写值
+func (ctx *Context) SetValue(key, value interface{}) {
+	if key == nil {
+		return
+	}
 	ctx.Request = ctx.Request.WithContext(context.WithValue(ctx.Request.Context(), key, value))
 }
 
-// 获取ctx里的值，取出后根据写入的类型自行断言
-func (ctx *Context) GetValue(key string) interface{} {
+// 从Context中取值
+func (ctx *Context) GetValue(key interface{}) interface{} {
+	if key == nil {
+		return nil
+	}
 	return ctx.Request.Context().Value(key)
 }
 
 // 向客户端发送重定向响应
-func (ctx *Context) Redirect(code int, url string) error {
+func (ctx *Context) Redirect(code int, url string) {
 	if code < 300 || code > 308 {
-		return errors.New("状态码只能是300-308之间的值")
+		panic("The status code can only be 30x")
 	}
 	ctx.ResponseWriter.Header().Set("Location", url)
 	ctx.ResponseWriter.WriteHeader(code)
-	return nil
 }
 
-// 透过nginx反向代理获得客户端真实IP
+// 获得客户端真实IP
 func (ctx *Context) RemoteIP() string {
 	ra := ctx.Request.RemoteAddr
 	if ip := ctx.Request.Header.Get("X-Forwarded-For"); ip != "" {
@@ -70,48 +112,8 @@ func (ctx *Context) RemoteIP() string {
 	return ra
 }
 
-// 解析body数据
-func (ctx *Context) parseBody() error {
-	// 判断是否已经解析过body
-	if ctx.parsed {
-		return nil
-	}
-	if strings.HasPrefix(ctx.Request.Header.Get("Content-Type"), "multipart/form-data") {
-		if err := ctx.Request.ParseMultipartForm(http.DefaultMaxHeaderBytes); err != nil {
-			return err
-		}
-	} else {
-		if err := ctx.Request.ParseForm(); err != nil {
-			return err
-		}
-	}
-	// 标记该context中的body已经解析过
-	ctx.parsed = true
-	return nil
-}
-
-// 获取所有路由参数值
-func (ctx *Context) RouteValues() []httprouter.Param {
-	return ctx.routeParams
-}
-
-// 获取路由参数值
-func (ctx *Context) Param(key string) (string, bool) {
-	for i := range ctx.routeParams {
-		if ctx.routeParams[i].Key == key {
-			return ctx.routeParams[i].Value, false
-		}
-	}
-	return "", true
-}
-
-// 获取某个路由参数值的string类型
-func (ctx *Context) ParamValue(key string) string {
-	return ctx.routeParams.ByName(key)
-}
-
 // 获取所有GET参数值
-func (ctx *Context) Querys() url.Values {
+func (ctx *Context) QueryValues() url.Values {
 	return ctx.Request.URL.Query()
 }
 
@@ -131,17 +133,48 @@ func (ctx *Context) QueryValue(key string) string {
 	return ctx.Request.URL.Query()[key][0]
 }
 
-// 获取所有POST参数值
-func (ctx *Context) Posts() url.Values {
-	err := ctx.parseBody()
-	if err != nil {
-		return url.Values{}
+// 获取所有PATCH/PUT/POST参数值
+func (ctx *Context) PostValues() url.Values {
+	if err := ctx.parseBody(); err != nil {
+		return emptyValues
 	}
 	return ctx.Request.PostForm
 }
 
-// 获取某个POST参数值
+// 获取某个PATCH/PUT/POST参数值
 func (ctx *Context) Post(key string) (string, bool) {
+	if err := ctx.parseBody(); err != nil {
+		return "", false
+	}
+	vs := ctx.Request.PostForm[key]
+	if len(vs) == 0 {
+		return "", false
+	}
+	return ctx.Request.PostForm[key][0], true
+}
+
+// 获取某个PATCH/PUT/POST参数值的string类型
+func (ctx *Context) PostValue(key string) string {
+	if err := ctx.parseBody(); err != nil {
+		return ""
+	}
+	vs := ctx.Request.PostForm[key]
+	if len(vs) == 0 {
+		return ""
+	}
+	return ctx.Request.PostForm[key][0]
+}
+
+// 获取所有GET/POST/PUT参数值
+func (ctx *Context) FormValues() url.Values {
+	if err := ctx.parseBody(); err != nil {
+		return emptyValues
+	}
+	return ctx.Request.Form
+}
+
+// 获取单个GET/POST/PUT参数值
+func (ctx *Context) Form(key string) (string, bool) {
 	if err := ctx.parseBody(); err != nil {
 		return "", false
 	}
@@ -152,8 +185,8 @@ func (ctx *Context) Post(key string) (string, bool) {
 	return ctx.Request.Form[key][0], true
 }
 
-// 获取某个POST参数值的string类型
-func (ctx *Context) PostValue(key string) string {
+// 获取某个GET/POST/PUT参数值的string类型
+func (ctx *Context) FormValue(key string) string {
 	if err := ctx.parseBody(); err != nil {
 		return ""
 	}
