@@ -1,7 +1,3 @@
-// Copyright 2013 Julien Schmidt. All rights reserved.
-// Use of this source code is governed by a BSD-style license that can be found
-// at https://github.com/julienschmidt/httprouter/blob/master/LICENSE
-
 package tsing
 
 import (
@@ -9,20 +5,16 @@ import (
 	"strings"
 )
 
-// URLParam is a single URL parameter, consisting of a key and a value.
-type URLParam struct {
+// 路由中的路径参数
+type PathParam struct {
 	Key   string
 	Value string
 }
 
-// URLParams is a URLParam-slice, as returned by the router.
-// The slice is ordered, the first URL parameter is also the first slice value.
-// It is therefore safe to read values by the index.
-type URLParams []URLParam
+type PathParams []PathParam
 
-// GetValue returns the value of the first URLParam which key matches the given name.
-// If no matching URLParam is found, an empty string is returned.
-func (ps URLParams) Get(name string) (string, bool) {
+// 获得路径参数
+func (ps PathParams) Get(name string) (string, bool) {
 	for k := range ps {
 		if ps[k].Key == name {
 			return ps[k].Value, true
@@ -31,9 +23,8 @@ func (ps URLParams) Get(name string) (string, bool) {
 	return "", false
 }
 
-// Key returns the value of the first URLParam which key matches the given name.
-// If no matching URLParam is found, an empty string is returned.
-func (ps URLParams) Key(name string) (value string) {
+// 获得路径参数值
+func (ps PathParams) Value(name string) (value string) {
 	value, _ = ps.Get(name)
 	return
 }
@@ -410,7 +401,7 @@ func (n *node) insertChild(numParams uint8, path string, fullPath string, handle
 // nodeValue holds return values of (*Node).getValue method
 type nodeValue struct {
 	handlers HandlersChain
-	params   URLParams
+	params   PathParams
 	tsr      bool
 	fullPath string
 }
@@ -421,7 +412,7 @@ type nodeValue struct {
 // made if a handle exists with an extra (without the) trailing slash for the
 // given path.
 // nolint:gocyclo
-func (n *node) getValue(path string, po URLParams, unescape bool) (value nodeValue) {
+func (n *node) getValue(path string, po PathParams, unescape bool) (value nodeValue) {
 	value.params = po
 walk: // Outer loop for walking the tree
 	for {
@@ -488,7 +479,7 @@ walk: // Outer loop for walking the tree
 
 				// save param value
 				if cap(value.params) < int(n.maxParams) {
-					value.params = make(URLParams, 0, n.maxParams)
+					value.params = make(PathParams, 0, n.maxParams)
 				}
 				i := len(value.params)
 				value.params = value.params[:i+1] // expand slice within preallocated capacity
@@ -531,7 +522,7 @@ walk: // Outer loop for walking the tree
 			case catchAll:
 				// save param value
 				if cap(value.params) < int(n.maxParams) {
-					value.params = make(URLParams, 0, n.maxParams)
+					value.params = make(PathParams, 0, n.maxParams)
 				}
 				i := len(value.params)
 				value.params = value.params[:i+1] // expand slice within preallocated capacity

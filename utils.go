@@ -1,19 +1,9 @@
 package tsing
 
 import (
+	"os"
 	"path"
-	"reflect"
-	"unsafe"
 )
-
-// 将string转bytes
-// nolint:gosec
-func stringToBytes(s string) (b []byte) {
-	sh := *(*reflect.StringHeader)(unsafe.Pointer(&s))
-	bh := (*reflect.SliceHeader)(unsafe.Pointer(&b))
-	bh.Data, bh.Len, bh.Cap = sh.Data, sh.Len, sh.Len
-	return b
-}
 
 // 取最后一个字符
 func lastChar(str string) uint8 {
@@ -35,4 +25,14 @@ func joinPaths(absolutePath, relativePath string) string {
 		return finalPath + "/"
 	}
 	return finalPath
+}
+
+// 获得程序的根路径
+func getRootPath() string {
+	// 使用当前路径
+	path, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
+	return path
 }
