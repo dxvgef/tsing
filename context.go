@@ -55,7 +55,7 @@ func (ctx *Context) parseBody() error {
 func (ctx *Context) Next() {
 	ctx.index++
 	for ctx.index < int8(len(ctx.handlers)) {
-		ctx.handlers[ctx.index](ctx)
+		ctx.handlers[ctx.index](ctx) // 执行处理器
 		ctx.index++
 	}
 }
