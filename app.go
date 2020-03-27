@@ -5,24 +5,24 @@ import (
 	"sync"
 )
 
-// 处理器
-type HandlerFunc func(*Context) error
+// 路由处理器
+type Handler func(*Context) error
 
 // 处理器链
-type HandlersChain []HandlerFunc
+type HandlersChain []Handler
 
 // 引擎配置
 type Config struct {
-	UseRawPath         bool             // 使用url.RawPath查找参数
-	UnescapePathValues bool             // 反转义路由参数
-	MaxMultipartMemory int64            // 分配给http.Request的值
-	EventHandlerFunc   EventHandlerFunc // 事件-处理器函数，如果不传值，则不启用事件
-	EventTrace         bool             // 事件-启用跟踪信息
-	EventShortPath     bool             // 事件-启用短文件路径
-	RootPath           string           // 应用的根路径
-	EventHandlerError  bool             // 事件-启用处理器返回的错误
-	EventSource        bool             // 事件-启用来源
-	Recover            bool             // 自动恢复panic
+	UseRawPath         bool         // 使用url.RawPath查找参数
+	UnescapePathValues bool         // 反转义路由参数
+	MaxMultipartMemory int64        // 分配给http.Request的值
+	EventHandler       EventHandler // 事件-处理器函数，如果不赋值，则不启用事件
+	EventTrace         bool         // 事件-启用跟踪信息
+	EventShortPath     bool         // 事件-启用短文件路径
+	RootPath           string       // 应用的根路径
+	EventHandlerError  bool         // 事件-启用处理器返回的错误
+	EventSource        bool         // 事件-启用来源
+	Recover            bool         // 自动恢复panic
 }
 
 // 引擎
@@ -92,7 +92,7 @@ func New(config *Config) *Engine {
 	}
 
 	// 设置event池
-	if config.EventHandlerFunc != nil {
+	if config.EventHandler != nil {
 		engine.eventPool.New = func() interface{} {
 			return &Event{
 				Status:  0,
@@ -111,7 +111,7 @@ func (engine *Engine) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 	if engine.Config.Recover {
 		defer func() {
 			err := recover()
-			if err != nil && engine.Config.EventHandlerFunc != nil {
+			if err != nil && engine.Config.EventHandler != nil {
 				// 触发panic事件
 				engine.panicEvent(resp, req, err)
 			}
@@ -147,11 +147,11 @@ func (engine *Engine) handleRequest(ctx *Context) {
 			continue
 		}
 		root := engine.trees[k].root
-		value := root.getValue(rPath, ctx.URLParams, unescape)
+		value := root.getValue(rPath, ctx.PathParams, unescape)
 		if value.handlers != nil {
 			// 为ctx属性赋值
 			ctx.handlers = value.handlers
-			ctx.URLParams = value.params
+			ctx.PathParams = value.params
 			ctx.fullPath = value.fullPath
 			// 执行ctx中的处理器
 			ctx.next()

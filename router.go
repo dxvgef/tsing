@@ -11,16 +11,16 @@ const abortIndex int8 = math.MaxInt8 / 2
 
 // 路由组接口
 type RouterInterface interface {
-	Append(...HandlerFunc) RouterInterface
-	Handle(string, string, ...HandlerFunc) RouterInterface
-	Any(string, ...HandlerFunc) RouterInterface
-	GET(string, ...HandlerFunc) RouterInterface
-	POST(string, ...HandlerFunc) RouterInterface
-	DELETE(string, ...HandlerFunc) RouterInterface
-	PATCH(string, ...HandlerFunc) RouterInterface
-	PUT(string, ...HandlerFunc) RouterInterface
-	OPTIONS(string, ...HandlerFunc) RouterInterface
-	HEAD(string, ...HandlerFunc) RouterInterface
+	Append(...Handler) RouterInterface
+	Handle(string, string, ...Handler) RouterInterface
+	Any(string, ...Handler) RouterInterface
+	GET(string, ...Handler) RouterInterface
+	POST(string, ...Handler) RouterInterface
+	DELETE(string, ...Handler) RouterInterface
+	PATCH(string, ...Handler) RouterInterface
+	PUT(string, ...Handler) RouterInterface
+	OPTIONS(string, ...Handler) RouterInterface
+	HEAD(string, ...Handler) RouterInterface
 
 	// StaticFile(string, string) RouterInterface
 	// Static(string, string) RouterInterface
@@ -61,13 +61,13 @@ func (router *Router) getGroup() RouterInterface {
 }
 
 // 添加处理器
-func (router *Router) Append(handlers ...HandlerFunc) RouterInterface {
+func (router *Router) Append(handlers ...Handler) RouterInterface {
 	router.Handlers = append(router.Handlers, handlers...)
 	return router.getGroup()
 }
 
 // 定义路由组
-func (router *Router) Group(path string, handlers ...HandlerFunc) *Router {
+func (router *Router) Group(path string, handlers ...Handler) *Router {
 	return &Router{
 		Handlers: router.combineHandlers(handlers),
 		basePath: router.calculateAbsolutePath(path),
@@ -84,7 +84,7 @@ func (router *Router) handle(method, path string, handlers HandlersChain) Router
 }
 
 // 注册自定义HTTP方法的路由
-func (router *Router) Handle(method, path string, handlers ...HandlerFunc) RouterInterface {
+func (router *Router) Handle(method, path string, handlers ...Handler) RouterInterface {
 	if matches, err := regexp.MatchString("^[A-Z]+$", method); !matches || err != nil {
 		panic("HTTP method " + method + " is not valid")
 	}
@@ -92,42 +92,42 @@ func (router *Router) Handle(method, path string, handlers ...HandlerFunc) Route
 }
 
 // 注册POST路由
-func (router *Router) POST(path string, handlers ...HandlerFunc) RouterInterface {
+func (router *Router) POST(path string, handlers ...Handler) RouterInterface {
 	return router.handle(http.MethodPost, path, handlers)
 }
 
 // 注册GET路由
-func (router *Router) GET(path string, handlers ...HandlerFunc) RouterInterface {
+func (router *Router) GET(path string, handlers ...Handler) RouterInterface {
 	return router.handle(http.MethodGet, path, handlers)
 }
 
 // 注册DELETE路由
-func (router *Router) DELETE(path string, handlers ...HandlerFunc) RouterInterface {
+func (router *Router) DELETE(path string, handlers ...Handler) RouterInterface {
 	return router.handle(http.MethodDelete, path, handlers)
 }
 
 // 注册PATCH路由
-func (router *Router) PATCH(path string, handlers ...HandlerFunc) RouterInterface {
+func (router *Router) PATCH(path string, handlers ...Handler) RouterInterface {
 	return router.handle(http.MethodPatch, path, handlers)
 }
 
 // 注册PUT路由
-func (router *Router) PUT(path string, handlers ...HandlerFunc) RouterInterface {
+func (router *Router) PUT(path string, handlers ...Handler) RouterInterface {
 	return router.handle(http.MethodPut, path, handlers)
 }
 
 // 注册OPTIONS路由
-func (router *Router) OPTIONS(path string, handlers ...HandlerFunc) RouterInterface {
+func (router *Router) OPTIONS(path string, handlers ...Handler) RouterInterface {
 	return router.handle(http.MethodOptions, path, handlers)
 }
 
 // 注册HEAD路由
-func (router *Router) HEAD(path string, handlers ...HandlerFunc) RouterInterface {
+func (router *Router) HEAD(path string, handlers ...Handler) RouterInterface {
 	return router.handle(http.MethodHead, path, handlers)
 }
 
 // 注册所有路由
-func (router *Router) Any(path string, handlers ...HandlerFunc) RouterInterface {
+func (router *Router) Any(path string, handlers ...Handler) RouterInterface {
 	router.handle(http.MethodGet, path, handlers)
 	router.handle(http.MethodPost, path, handlers)
 	router.handle(http.MethodPut, path, handlers)

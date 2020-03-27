@@ -13,7 +13,7 @@ const MaxMultipartMemory = 1 << 20
 
 // 上下文
 type Context struct {
-	URLParams      PathParams
+	PathParams     PathParams
 	handlers       HandlersChain
 	ResponseWriter http.ResponseWriter
 	fullPath       string
@@ -29,7 +29,7 @@ var emptyValues url.Values
 func (ctx *Context) reset(req *http.Request, resp http.ResponseWriter) {
 	ctx.Request = req
 	ctx.ResponseWriter = resp
-	ctx.URLParams = ctx.URLParams[0:0]
+	ctx.PathParams = ctx.PathParams[0:0]
 	ctx.handlers = nil
 	ctx.index = -1
 	ctx.fullPath = ""
@@ -66,7 +66,7 @@ func (ctx *Context) next() {
 			continue
 		}
 		// 500事件
-		if ctx.engine.Config.EventHandlerFunc == nil || !ctx.engine.Config.EventHandlerError {
+		if ctx.engine.Config.EventHandler == nil || !ctx.engine.Config.EventHandlerError {
 			break
 		}
 		if !ctx.engine.Config.EventSource {

@@ -26,8 +26,8 @@ type _Source struct {
 	Line int    // 行号
 }
 
-// 事件处理器函数
-type EventHandlerFunc func(*Event)
+// 事件处理器
+type EventHandler func(*Event)
 
 func (e *Event) reset(resp http.ResponseWriter, req *http.Request) {
 	e.Message = nil
@@ -66,14 +66,14 @@ func (engine *Engine) handlerErrorEvent(resp http.ResponseWriter, req *http.Requ
 		}
 	}
 
-	engine.Config.EventHandlerFunc(event)
+	engine.Config.EventHandler(event)
 	engine.eventPool.Put(event)
 }
 
 // context的Source()触发的的事件处理器
 // 能精准记录事件来源信息
 func (engine *Engine) contextSourceHandler(resp http.ResponseWriter, req *http.Request, err error) {
-	if err == nil || engine.Config.EventHandlerFunc == nil || !engine.Config.EventHandlerError {
+	if err == nil || engine.Config.EventHandler == nil || !engine.Config.EventHandlerError {
 		return
 	}
 
@@ -120,13 +120,13 @@ func (engine *Engine) contextSourceHandler(resp http.ResponseWriter, req *http.R
 		}
 	}
 
-	engine.Config.EventHandlerFunc(event)
+	engine.Config.EventHandler(event)
 	engine.eventPool.Put(event)
 }
 
 // handler的panic处理器
 func (engine *Engine) panicEvent(resp http.ResponseWriter, req *http.Request, err interface{}) {
-	if !engine.Config.Recover && engine.Config.EventHandlerFunc == nil {
+	if !engine.Config.Recover && engine.Config.EventHandler == nil {
 		return
 	}
 
@@ -182,7 +182,7 @@ func (engine *Engine) panicEvent(resp http.ResponseWriter, req *http.Request, er
 		}
 	}
 
-	engine.Config.EventHandlerFunc(event)
+	engine.Config.EventHandler(event)
 
 	// 将event放回池中
 	engine.eventPool.Put(event)
@@ -190,7 +190,7 @@ func (engine *Engine) panicEvent(resp http.ResponseWriter, req *http.Request, er
 
 // 404事件处理器
 func (engine *Engine) notFoundEvent(resp http.ResponseWriter, req *http.Request) {
-	if engine.Config.EventHandlerFunc == nil {
+	if engine.Config.EventHandler == nil {
 		return
 	}
 
@@ -201,14 +201,14 @@ func (engine *Engine) notFoundEvent(resp http.ResponseWriter, req *http.Request)
 	event.Status = http.StatusNotFound
 	event.Message = errors.New(http.StatusText(http.StatusNotFound))
 
-	engine.Config.EventHandlerFunc(event)
+	engine.Config.EventHandler(event)
 
 	engine.eventPool.Put(event)
 }
 
 // 405事件处理器
 func (engine *Engine) methodNotAllowedEvent(resp http.ResponseWriter, req *http.Request) {
-	if engine.Config.EventHandlerFunc == nil {
+	if engine.Config.EventHandler == nil {
 		return
 	}
 
@@ -219,7 +219,7 @@ func (engine *Engine) methodNotAllowedEvent(resp http.ResponseWriter, req *http.
 	event.Status = http.StatusMethodNotAllowed
 	event.Message = errors.New(http.StatusText(http.StatusMethodNotAllowed))
 
-	engine.Config.EventHandlerFunc(event)
+	engine.Config.EventHandler(event)
 
 	engine.eventPool.Put(event)
 }

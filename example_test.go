@@ -37,7 +37,7 @@ func TestURLParams(t *testing.T) {
 		MaxMultipartMemory: 20 << 20,
 	})
 	app.GET("/:test/ok", func(ctx *Context) error {
-		t.Log(ctx.URLParams.Value("test"))
+		t.Log(ctx.PathParams.Value("test"))
 		return nil
 	})
 	r, err := http.NewRequest("GET", "/haha/ok", nil)
@@ -122,25 +122,24 @@ func TestAbort(t *testing.T) {
 	app.ServeHTTP(httptest.NewRecorder(), r)
 }
 
-// 测试添加处理器
+// 测试Append
 func TestAppend(t *testing.T) {
 	app := New(&Config{
 		UnescapePathValues: true,
 		MaxMultipartMemory: 20 << 20,
 	})
-	group := app.Group("/group")
-	group.Append(func(ctx *Context) error {
+	app.Append(func(ctx *Context) error {
 		t.Log(1, "append handler 1")
 		return nil
 	}, func(ctx *Context) error {
 		t.Log(2, "append handler 2")
 		return nil
 	})
-	group.GET("/object", func(ctx *Context) error {
+	app.GET("/test", func(ctx *Context) error {
 		t.Log(3, ctx.Request.URL.Path)
 		return nil
 	})
-	r, err := http.NewRequest("GET", "/group/object", nil)
+	r, err := http.NewRequest("GET", "/test", nil)
 	if err != nil {
 		t.Error(err.Error())
 		return
@@ -228,7 +227,7 @@ func TestNotFoundEvent(t *testing.T) {
 	app := New(&Config{
 		RootPath:           getRootPath(),
 		UnescapePathValues: true,
-		EventHandlerFunc:   eventHandler,
+		EventHandler:       eventHandler,
 	})
 	r, err := http.NewRequest("GET", "/404", nil)
 	if err != nil {
@@ -243,7 +242,7 @@ func TestMethodNotAllowedEvent(t *testing.T) {
 	app := New(&Config{
 		RootPath:           getRootPath(),
 		UnescapePathValues: true,
-		EventHandlerFunc:   eventHandler,
+		EventHandler:       eventHandler,
 	})
 	app.POST("/", func(ctx *Context) error {
 		return nil
@@ -262,7 +261,7 @@ func TestHandlerErrorEvent(t *testing.T) {
 		RootPath:           getRootPath(),
 		UnescapePathValues: true,
 		MaxMultipartMemory: 2 << 20,
-		EventHandlerFunc:   eventHandler,
+		EventHandler:       eventHandler,
 		EventTrace:         false,
 		EventHandlerError:  true,
 		EventSource:        true,
@@ -288,7 +287,7 @@ func TestContextSourceEvent(t *testing.T) {
 		RootPath:           getRootPath(),
 		UnescapePathValues: true,
 		MaxMultipartMemory: 2 << 20,
-		EventHandlerFunc:   eventHandler,
+		EventHandler:       eventHandler,
 		EventTrace:         false,
 		EventHandlerError:  true,
 		EventSource:        true,
@@ -314,7 +313,7 @@ func TestPanicEvent(t *testing.T) {
 		RootPath:           getRootPath(),
 		UnescapePathValues: true,
 		MaxMultipartMemory: 2 << 20,
-		EventHandlerFunc:   eventHandler,
+		EventHandler:       eventHandler,
 		EventTrace:         true,
 		EventSource:        true,
 		Recover:            true,
