@@ -63,6 +63,9 @@ func (engine *Engine) addRoute(method, path string, handlers HandlersChain) {
 
 // 创建一个新引擎
 func New(config *Config) *Engine {
+	if config.MaxMultipartMemory == 0 {
+		config.MaxMultipartMemory = MaxMultipartMemory
+	}
 	// 初始化一个引擎
 	engine := &Engine{
 		// 初始化根路由组

@@ -8,6 +8,9 @@ import (
 	"strings"
 )
 
+// 默认body限制
+const MaxMultipartMemory = 1 << 20
+
 // 上下文
 type Context struct {
 	URLParams      PathParams
