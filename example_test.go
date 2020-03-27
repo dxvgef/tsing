@@ -1,6 +1,7 @@
 package tsing
 
 import (
+	"errors"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -11,11 +12,15 @@ import (
 
 // 测试回应
 func TestEcho(t *testing.T) {
-	app := Default()
-	app.GET("/", func(ctx *Context) {
+	app := New(&Config{
+		UnescapePathValues: true,
+		MaxMultipartMemory: 20 << 20,
+	})
+	app.GET("/", func(ctx *Context) error {
 		ctx.ResponseWriter.WriteHeader(200)
-		ctx.ResponseWriter.Write([]byte("Hello !"))
+		_, _ = ctx.ResponseWriter.Write([]byte("Hello !"))
 		t.Log("Hello !")
+		return nil
 	})
 	r, err := http.NewRequest("GET", "/", nil)
 	if err != nil {
@@ -27,9 +32,13 @@ func TestEcho(t *testing.T) {
 
 // 测试 PathParams
 func TestURLParams(t *testing.T) {
-	app := Default()
-	app.GET("/:test/ok", func(ctx *Context) {
+	app := New(&Config{
+		UnescapePathValues: true,
+		MaxMultipartMemory: 20 << 20,
+	})
+	app.GET("/:test/ok", func(ctx *Context) error {
 		t.Log(ctx.URLParams.Value("test"))
+		return nil
 	})
 	r, err := http.NewRequest("GET", "/haha/ok", nil)
 	if err != nil {
@@ -41,14 +50,19 @@ func TestURLParams(t *testing.T) {
 
 // 测试Context传值
 func TestContext(t *testing.T) {
-	app := Default()
-	app.GET("/context", func(ctx *Context) {
+	app := New(&Config{
+		UnescapePathValues: true,
+		MaxMultipartMemory: 20 << 20,
+	})
+	app.GET("/context", func(ctx *Context) error {
 		// 在ctx中写入参数
 		ctx.SetValue("test", "hehe")
 		t.Log(1, ctx.Request.URL.Path, "写值")
-	}, func(ctx *Context) {
+		return nil
+	}, func(ctx *Context) error {
 		// 从ctx中读取参数
 		t.Log(2, ctx.Request.URL.Path, "取值：", ctx.GetValue("test"))
+		return nil
 	})
 	r, err := http.NewRequest("GET", "/context", nil)
 	if err != nil {
@@ -60,15 +74,21 @@ func TestContext(t *testing.T) {
 
 // 测试路由组
 func TestGroup(t *testing.T) {
-	app := Default()
-	group := app.Group("/group", func(ctx *Context) {
+	app := New(&Config{
+		UnescapePathValues: true,
+		MaxMultipartMemory: 20 << 20,
+	})
+	group := app.Group("/group", func(ctx *Context) error {
 		ctx.SetValue("test", "haha")
 		t.Log(1, ctx.Request.URL.Path, "写值")
+		return nil
 	})
-	group.GET("/object", func(ctx *Context) {
+	group.GET("/object", func(ctx *Context) error {
 		t.Log(2, ctx.Request.URL.Path, "取值：", ctx.GetValue("test"))
-	}, func(ctx *Context) {
+		return nil
+	}, func(ctx *Context) error {
 		t.Log(3, ctx.Request.URL.Path, "取值：", ctx.GetValue("test"))
+		return nil
 	})
 	r, err := http.NewRequest("GET", "/group/object", nil)
 	if err != nil {
@@ -80,14 +100,19 @@ func TestGroup(t *testing.T) {
 
 // 测试中止
 func TestAbort(t *testing.T) {
-	app := Default()
+	app := New(&Config{
+		UnescapePathValues: true,
+		MaxMultipartMemory: 20 << 20,
+	})
 	group := app.Group("/group")
-	group.GET("/object", func(ctx *Context) {
+	group.GET("/object", func(ctx *Context) error {
 		t.Log(1, ctx.Request.URL.Path)
 		ctx.Abort()
 		t.Log(2, ctx.IsAborted())
-	}, func(ctx *Context) {
+		return nil
+	}, func(ctx *Context) error {
 		t.Log(3, ctx.Request.URL.Path)
+		return nil
 	})
 	r, err := http.NewRequest("GET", "/group/object", nil)
 	if err != nil {
@@ -99,15 +124,21 @@ func TestAbort(t *testing.T) {
 
 // 测试添加处理器
 func TestAppend(t *testing.T) {
-	app := Default()
-	group := app.Group("/group")
-	group.Append(func(ctx *Context) {
-		t.Log(1, "append handler 1")
-	}, func(ctx *Context) {
-		t.Log(2, "append handler 2")
+	app := New(&Config{
+		UnescapePathValues: true,
+		MaxMultipartMemory: 20 << 20,
 	})
-	group.GET("/object", func(ctx *Context) {
+	group := app.Group("/group")
+	group.Append(func(ctx *Context) error {
+		t.Log(1, "append handler 1")
+		return nil
+	}, func(ctx *Context) error {
+		t.Log(2, "append handler 2")
+		return nil
+	})
+	group.GET("/object", func(ctx *Context) error {
 		t.Log(3, ctx.Request.URL.Path)
+		return nil
 	})
 	r, err := http.NewRequest("GET", "/group/object", nil)
 	if err != nil {
@@ -119,9 +150,13 @@ func TestAppend(t *testing.T) {
 
 // 测试QueryValues
 func TestQueryValues(t *testing.T) {
-	app := Default()
-	app.GET("/object", func(ctx *Context) {
+	app := New(&Config{
+		UnescapePathValues: true,
+		MaxMultipartMemory: 20 << 20,
+	})
+	app.GET("/object", func(ctx *Context) error {
 		t.Log(ctx.QueryValues())
+		return nil
 	})
 	r, err := http.NewRequest("GET", "/object?a=1&b=2", nil)
 	if err != nil {
@@ -133,9 +168,13 @@ func TestQueryValues(t *testing.T) {
 
 // 测试PostValues
 func TestPostValues(t *testing.T) {
-	app := Default()
-	app.POST("/object", func(ctx *Context) {
+	app := New(&Config{
+		UnescapePathValues: true,
+		MaxMultipartMemory: 20 << 20,
+	})
+	app.POST("/object", func(ctx *Context) error {
 		t.Log(ctx.PostValues())
+		return nil
 	})
 
 	v := url.Values{}
@@ -152,9 +191,13 @@ func TestPostValues(t *testing.T) {
 
 // 测试FormValues
 func TestFormValues(t *testing.T) {
-	app := Default()
-	app.POST("/object", func(ctx *Context) {
+	app := New(&Config{
+		UnescapePathValues: true,
+		MaxMultipartMemory: 20 << 20,
+	})
+	app.POST("/object", func(ctx *Context) error {
 		t.Log(ctx.FormValues())
+		return nil
 	})
 
 	v := url.Values{}
@@ -180,36 +223,12 @@ func eventHandler(e *Event) {
 	}
 }
 
-// 测试panic事件
-func TestPanicEvent(t *testing.T) {
-	app := New(&Config{
-		RootPath:              getRootPath(),
-		UnescapePathValues:    true,
-		MaxMultipartMemory:    2 << 20,
-		EventHandler:          eventHandler,
-		EventTrace:            true,
-		EventTraceOnlyProject: true,
-		EventTrigger:          true,
-		Recover:               true,
-		EventTraceShortPath:   true,
-	})
-	app.GET("/", func(ctx *Context) {
-		panic("这是panic消息")
-	})
-	r, err := http.NewRequest("GET", "/", nil)
-	if err != nil {
-		t.Error(err.Error())
-		return
-	}
-	app.ServeHTTP(httptest.NewRecorder(), r)
-}
-
 // 测试404事件
 func TestNotFoundEvent(t *testing.T) {
 	app := New(&Config{
 		RootPath:           getRootPath(),
 		UnescapePathValues: true,
-		EventHandler:       eventHandler,
+		EventHandlerFunc:   eventHandler,
 	})
 	r, err := http.NewRequest("GET", "/404", nil)
 	if err != nil {
@@ -224,9 +243,86 @@ func TestMethodNotAllowedEvent(t *testing.T) {
 	app := New(&Config{
 		RootPath:           getRootPath(),
 		UnescapePathValues: true,
-		EventHandler:       eventHandler,
+		EventHandlerFunc:   eventHandler,
 	})
-	app.POST("/", func(ctx *Context) {})
+	app.POST("/", func(ctx *Context) error {
+		return nil
+	})
+	r, err := http.NewRequest("GET", "/", nil)
+	if err != nil {
+		t.Error(err.Error())
+		return
+	}
+	app.ServeHTTP(httptest.NewRecorder(), r)
+}
+
+// 测试处理器返回的error事件
+func TestHandlerErrorEvent(t *testing.T) {
+	app := New(&Config{
+		RootPath:           getRootPath(),
+		UnescapePathValues: true,
+		MaxMultipartMemory: 2 << 20,
+		EventHandlerFunc:   eventHandler,
+		EventTrace:         false,
+		EventHandlerError:  true,
+		EventSource:        true,
+		EventShortPath:     true,
+	})
+	app.GET("/", func(ctx *Context) error {
+		return errors.New("这是处理器返回的错误")
+	}, func(ctx *Context) error {
+		t.Error("处理器链的执行逻辑有异常")
+		return nil
+	})
+	r, err := http.NewRequest("GET", "/", nil)
+	if err != nil {
+		t.Error(err.Error())
+		return
+	}
+	app.ServeHTTP(httptest.NewRecorder(), r)
+}
+
+// 测试处理器中使用Source()包裹error并返回的事件
+func TestContextSourceEvent(t *testing.T) {
+	app := New(&Config{
+		RootPath:           getRootPath(),
+		UnescapePathValues: true,
+		MaxMultipartMemory: 2 << 20,
+		EventHandlerFunc:   eventHandler,
+		EventTrace:         false,
+		EventHandlerError:  true,
+		EventSource:        true,
+		EventShortPath:     true,
+	})
+	app.GET("/", func(ctx *Context) error {
+		return ctx.Source(errors.New("这是用ctx.Source()返回的错误，能精准定位到事件来源"))
+	}, func(ctx *Context) error {
+		t.Error("处理器链的执行逻辑有异常")
+		return nil
+	})
+	r, err := http.NewRequest("GET", "/", nil)
+	if err != nil {
+		t.Error(err.Error())
+		return
+	}
+	app.ServeHTTP(httptest.NewRecorder(), r)
+}
+
+// 测试panic事件
+func TestPanicEvent(t *testing.T) {
+	app := New(&Config{
+		RootPath:           getRootPath(),
+		UnescapePathValues: true,
+		MaxMultipartMemory: 2 << 20,
+		EventHandlerFunc:   eventHandler,
+		EventTrace:         true,
+		EventSource:        true,
+		Recover:            true,
+		EventShortPath:     true,
+	})
+	app.GET("/", func(ctx *Context) error {
+		panic("这是panic消息")
+	})
 	r, err := http.NewRequest("GET", "/", nil)
 	if err != nil {
 		t.Error(err.Error())

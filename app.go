@@ -6,24 +6,23 @@ import (
 )
 
 // 处理器
-type HandlerFunc func(*Context)
+type HandlerFunc func(*Context) error
 
 // 处理器链
 type HandlersChain []HandlerFunc
 
 // 引擎配置
 type Config struct {
-	UseRawPath            bool         // 使用url.RawPath查找参数
-	UnescapePathValues    bool         // 反转义路由参数
-	MaxMultipartMemory    int64        // 分配给http.Request的值
-	EventHandler          EventHandler // 事件处理器
-	EventTrace            bool         // 启用事件跟踪
-	EventTraceOnlyProject bool         // 仅跟踪项目源码
-	RootPath              string       // 应用的根路径
-	ErrorEvent            bool         // 启用错误日志
-	EventTraceShortPath   bool         // 事件跟踪使用短路径
-	EventTrigger          bool         // 记录事件触发器
-	Recover               bool         // 自动恢复panic
+	UseRawPath         bool             // 使用url.RawPath查找参数
+	UnescapePathValues bool             // 反转义路由参数
+	MaxMultipartMemory int64            // 分配给http.Request的值
+	EventHandlerFunc   EventHandlerFunc // 事件-处理器函数，如果不传值，则不启用事件
+	EventTrace         bool             // 事件-启用跟踪信息
+	EventShortPath     bool             // 事件-启用短文件路径
+	RootPath           string           // 应用的根路径
+	EventHandlerError  bool             // 事件-启用处理器返回的错误
+	EventSource        bool             // 事件-启用来源
+	Recover            bool             // 自动恢复panic
 }
 
 // 引擎
@@ -90,7 +89,7 @@ func New(config *Config) *Engine {
 	}
 
 	// 设置event池
-	if config.EventHandler != nil {
+	if config.EventHandlerFunc != nil {
 		engine.eventPool.New = func() interface{} {
 			return &Event{
 				Status:  0,
@@ -104,28 +103,12 @@ func New(config *Config) *Engine {
 	return engine
 }
 
-// 创建一个默认引擎
-func Default() *Engine {
-	return New(&Config{
-		RootPath:            getRootPath(),
-		UseRawPath:          false,
-		UnescapePathValues:  true,
-		MaxMultipartMemory:  1 << 20,
-		EventHandler:        nil,
-		EventTrace:          false,
-		ErrorEvent:          false,
-		EventTraceShortPath: false,
-		EventTrigger:        false,
-		Recover:             false,
-	})
-}
-
 // 实现http.Handler接口，并且是连接调度的入口
 func (engine *Engine) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 	if engine.Config.Recover {
 		defer func() {
 			err := recover()
-			if err != nil && engine.Config.EventHandler != nil {
+			if err != nil && engine.Config.EventHandlerFunc != nil {
 				// 触发panic事件
 				engine.panicEvent(resp, req, err)
 			}
@@ -168,7 +151,7 @@ func (engine *Engine) handleRequest(ctx *Context) {
 			ctx.URLParams = value.params
 			ctx.fullPath = value.fullPath
 			// 执行ctx中的处理器
-			ctx.Next()
+			ctx.next()
 			return
 		}
 		break

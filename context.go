@@ -52,12 +52,43 @@ func (ctx *Context) parseBody() error {
 }
 
 // 继续执行下一个处理器
-func (ctx *Context) Next() {
+func (ctx *Context) next() {
+	var err error
 	ctx.index++
 	for ctx.index < int8(len(ctx.handlers)) {
-		ctx.handlers[ctx.index](ctx) // 执行处理器
-		ctx.index++
+		// 执行处理器
+		err = ctx.handlers[ctx.index](ctx)
+		if err == nil {
+			ctx.index++
+			continue
+		}
+		// 500事件
+		if ctx.engine.Config.EventHandlerFunc == nil || !ctx.engine.Config.EventHandlerError {
+			break
+		}
+		if !ctx.engine.Config.EventSource {
+			ctx.engine.handlerErrorEvent(ctx.ResponseWriter, ctx.Request, nil, err)
+			break
+		}
+		source := getFuncInfo(ctx.handlers[ctx.index])
+		if ctx.engine.Config.EventShortPath {
+			source.File = strings.TrimPrefix(source.File, ctx.engine.Config.RootPath)
+		}
+		ctx.engine.handlerErrorEvent(ctx.ResponseWriter, ctx.Request, source, err)
+		break
 	}
+}
+
+// 精准记录事件源信息
+func (ctx *Context) Source(err error) error {
+	if err == nil {
+		return nil
+	}
+	// 使用contextSourceHandler来触发事件
+	ctx.engine.contextSourceHandler(ctx.ResponseWriter, ctx.Request, err)
+	ctx.Abort()
+	// 清空错误，防止引擎再使用handlerErrorEvent()触发一次重复事件
+	return nil
 }
 
 // 中止执行

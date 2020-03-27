@@ -3,6 +3,8 @@ package tsing
 import (
 	"os"
 	"path"
+	"reflect"
+	"runtime"
 )
 
 // 取最后一个字符
@@ -35,4 +37,15 @@ func getRootPath() string {
 		return ""
 	}
 	return path
+}
+
+// 获得函数信息
+func getFuncInfo(obj interface{}) *_Source {
+	ptr := reflect.ValueOf(obj).Pointer()
+	file, line := runtime.FuncForPC(ptr).FileLine(ptr)
+	return &_Source{
+		Func: runtime.FuncForPC(ptr).Name(),
+		File: file,
+		Line: line,
+	}
 }
