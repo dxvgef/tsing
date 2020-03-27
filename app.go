@@ -43,7 +43,7 @@ func (engine *Engine) addRoute(method, path string, handlers HandlersChain) {
 		panic("HTTP method can not be empty")
 	}
 	if len(handlers) == 0 {
-		panic("There must be at least one handler")
+		panic("[" + method + "]" + path + " must be at least one handler")
 	}
 
 	// 查找方法是否存在
