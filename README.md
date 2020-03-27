@@ -31,3 +31,15 @@ Go语言的高性能Web框架，具有以下特点：
 #### 基准测试
 `tsing`与`httprouter`、`echo`、`gin`等框架的基准测试对比
 <br>[dxvgef/tsing-benchmark](https://github.com/dxvgef/tsing-benchmark)
+
+测试结果：
+```
+Benchmark_Tsing_V1-4                       42688             26372 ns/op               0 B/op          0 allocs/op
+Benchmark_Tsing_V1_Recover-4               41553             27571 ns/op               0 B/op          0 allocs/op
+Benchmark_Httprouter-4                     33806             32360 ns/op           13792 B/op        167 allocs/op
+Benchmark_Httprouter_Recover-4             35547             33129 ns/op           13792 B/op        167 allocs/op
+Benchmark_Gin-4                            33469             34294 ns/op            6497 B/op        203 allocs/op
+Benchmark_Gin_Recover-4                    31071             37423 ns/op            6497 B/op        203 allocs/op
+Benchmark_Echo-4                           31489             36706 ns/op               0 B/op          0 allocs/op
+Benchmark_Echo_Recover-4                   21991             53318 ns/op            9745 B/op        203 allocs/op
+```
