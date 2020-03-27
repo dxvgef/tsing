@@ -158,14 +158,14 @@ func TestAppend(t *testing.T) {
 	app.ServeHTTP(httptest.NewRecorder(), r)
 }
 
-// 测试QueryValues
-func TestQueryValues(t *testing.T) {
+// 测试QueryParams
+func TestQueryParams(t *testing.T) {
 	app := New(&Config{
 		UnescapePathValues: true,
 		MaxMultipartMemory: 20 << 20,
 	})
 	app.GET("/object", func(ctx *Context) error {
-		t.Log(ctx.QueryValues())
+		t.Log(ctx.QueryParams())
 		return nil
 	})
 	r, err := http.NewRequest("GET", "/object?a=1&b=2", nil)
@@ -176,14 +176,14 @@ func TestQueryValues(t *testing.T) {
 	app.ServeHTTP(httptest.NewRecorder(), r)
 }
 
-// 测试PostValues
-func TestPostValues(t *testing.T) {
+// 测试PostParams
+func TestPostParams(t *testing.T) {
 	app := New(&Config{
 		UnescapePathValues: true,
 		MaxMultipartMemory: 20 << 20,
 	})
 	app.POST("/object", func(ctx *Context) error {
-		t.Log(ctx.PostValues())
+		t.Log(ctx.PostParams())
 		return nil
 	})
 
@@ -199,14 +199,14 @@ func TestPostValues(t *testing.T) {
 	app.ServeHTTP(httptest.NewRecorder(), r)
 }
 
-// 测试FormValues
-func TestFormValues(t *testing.T) {
+// 测试FormParams
+func TestFormParams(t *testing.T) {
 	app := New(&Config{
 		UnescapePathValues: true,
 		MaxMultipartMemory: 20 << 20,
 	})
 	app.POST("/object", func(ctx *Context) error {
-		t.Log(ctx.FormValues())
+		t.Log(ctx.FormParams())
 		return nil
 	})
 

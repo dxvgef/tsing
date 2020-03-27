@@ -148,48 +148,36 @@ func (ctx *Context) RemoteIP() string {
 }
 
 // 获取所有GET参数值
-func (ctx *Context) QueryValues() url.Values {
+func (ctx *Context) QueryParams() url.Values {
 	return ctx.Request.URL.Query()
 }
 
-// 获取某个GET参数值
-func (ctx *Context) Query(key string) (string, bool) {
-	if len(ctx.Request.URL.Query()[key]) == 0 {
-		return "", false
-	}
-	return ctx.Request.URL.Query()[key][0], true
-}
-
 // 获取某个GET参数值的string类型
-func (ctx *Context) QueryValue(key string) string {
+func (ctx *Context) Query(key string) string {
 	if len(ctx.Request.URL.Query()[key]) == 0 {
 		return ""
 	}
 	return ctx.Request.URL.Query()[key][0]
 }
 
-// 获取所有PATCH/PUT/POST参数值
-func (ctx *Context) PostValues() url.Values {
+// 获取某个GET参数
+func (ctx *Context) QueryParam(key string) (string, bool) {
+	if len(ctx.Request.URL.Query()[key]) == 0 {
+		return "", false
+	}
+	return ctx.Request.URL.Query()[key][0], true
+}
+
+// 获取所有POST/PATCH/PUT参数值
+func (ctx *Context) PostParams() url.Values {
 	if err := ctx.parseBody(); err != nil {
 		return emptyValues
 	}
 	return ctx.Request.PostForm
 }
 
-// 获取某个PATCH/PUT/POST参数值
-func (ctx *Context) Post(key string) (string, bool) {
-	if err := ctx.parseBody(); err != nil {
-		return "", false
-	}
-	vs := ctx.Request.PostForm[key]
-	if len(vs) == 0 {
-		return "", false
-	}
-	return ctx.Request.PostForm[key][0], true
-}
-
-// 获取某个PATCH/PUT/POST参数值的string类型
-func (ctx *Context) PostValue(key string) string {
+// 获取某个POST/PATCH/PUT参数值的string类型
+func (ctx *Context) Post(key string) string {
 	if err := ctx.parseBody(); err != nil {
 		return ""
 	}
@@ -200,28 +188,28 @@ func (ctx *Context) PostValue(key string) string {
 	return ctx.Request.PostForm[key][0]
 }
 
+// 获取某个POST/PATCH/PUT参数
+func (ctx *Context) PostParam(key string) (string, bool) {
+	if err := ctx.parseBody(); err != nil {
+		return "", false
+	}
+	vs := ctx.Request.PostForm[key]
+	if len(vs) == 0 {
+		return "", false
+	}
+	return ctx.Request.PostForm[key][0], true
+}
+
 // 获取所有GET/POST/PUT参数值
-func (ctx *Context) FormValues() url.Values {
+func (ctx *Context) FormParams() url.Values {
 	if err := ctx.parseBody(); err != nil {
 		return emptyValues
 	}
 	return ctx.Request.Form
 }
 
-// 获取单个GET/POST/PUT参数值
-func (ctx *Context) Form(key string) (string, bool) {
-	if err := ctx.parseBody(); err != nil {
-		return "", false
-	}
-	vs := ctx.Request.Form[key]
-	if len(vs) == 0 {
-		return "", false
-	}
-	return ctx.Request.Form[key][0], true
-}
-
 // 获取某个GET/POST/PUT参数值的string类型
-func (ctx *Context) FormValue(key string) string {
+func (ctx *Context) Form(key string) string {
 	if err := ctx.parseBody(); err != nil {
 		return ""
 	}
@@ -230,4 +218,16 @@ func (ctx *Context) FormValue(key string) string {
 		return ""
 	}
 	return ctx.Request.Form[key][0]
+}
+
+// 获取单个GET/POST/PUT参数
+func (ctx *Context) FormParam(key string) (string, bool) {
+	if err := ctx.parseBody(); err != nil {
+		return "", false
+	}
+	vs := ctx.Request.Form[key]
+	if len(vs) == 0 {
+		return "", false
+	}
+	return ctx.Request.Form[key][0], true
 }
