@@ -10,6 +10,17 @@ import (
 	"testing"
 )
 
+// 事件处理器
+func eventHandler(e *Event) {
+	log.SetFlags(log.Lshortfile)
+	log.Println(e.Status)
+	log.Println(e.Message)
+	log.Println(e.Source)
+	for k := range e.Trace {
+		log.Println("  ", e.Trace[k])
+	}
+}
+
 // 测试回应
 func TestEcho(t *testing.T) {
 	app := New(&Config{
@@ -209,17 +220,6 @@ func TestFormValues(t *testing.T) {
 	}
 	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	app.ServeHTTP(httptest.NewRecorder(), r)
-}
-
-// 事件处理器
-func eventHandler(e *Event) {
-	log.SetFlags(log.Lshortfile)
-	log.Println(e.Status)
-	log.Println(e.Message)
-	log.Println(e.Source)
-	for k := range e.Trace {
-		log.Println("  ", e.Trace[k])
-	}
 }
 
 // 测试404事件

@@ -37,7 +37,7 @@ type Engine struct {
 // 添加路由
 func (engine *Engine) addRoute(method, path string, handlers HandlersChain) {
 	if path[0] != '/' {
-		panic("path must begin with '/'")
+		panic("The path must begin with '/'")
 	}
 	if method == "" {
 		panic("HTTP method can not be empty")
