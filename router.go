@@ -4,6 +4,7 @@ import (
 	"math"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -68,129 +69,130 @@ func (router *Router) Append(handlers ...Handler) RouterInterface {
 }
 
 // 定义路由组
-func (router *Router) Group(path string, handlers ...Handler) *Router {
+func (router *Router) Group(urlPath string, handlers ...Handler) *Router {
 	return &Router{
 		Handlers: router.combineHandlers(handlers),
-		basePath: router.calculateAbsolutePath(path),
+		basePath: router.calculateAbsolutePath(urlPath),
 		engine:   router.engine,
 	}
 }
 
 // 处理路由
-func (router *Router) handle(method, path string, handlers HandlersChain) RouterInterface {
-	absolutePath := router.calculateAbsolutePath(path)     // 计算绝对路径
+func (router *Router) handle(method, urlPath string, handlers HandlersChain) RouterInterface {
+	absolutePath := router.calculateAbsolutePath(urlPath)  // 计算绝对路径
 	handlers = router.combineHandlers(handlers)            // 合并处理器
 	router.engine.addRoute(method, absolutePath, handlers) // 添加路由
 	return router.getRouter()
 }
 
 // 注册自定义HTTP方法的路由
-func (router *Router) Handle(method, path string, handlers ...Handler) RouterInterface {
+func (router *Router) Handle(method, urlPath string, handlers ...Handler) RouterInterface {
 	if matches, err := regexp.MatchString("^[A-Z]+$", method); !matches || err != nil {
 		panic("The HTTP method [" + method + "] is not valid")
 	}
-	return router.handle(method, path, handlers)
+	return router.handle(method, urlPath, handlers)
 }
 
 // 注册POST路由
-func (router *Router) POST(path string, handlers ...Handler) RouterInterface {
-	return router.handle(http.MethodPost, path, handlers)
+func (router *Router) POST(urlPath string, handlers ...Handler) RouterInterface {
+	return router.handle(http.MethodPost, urlPath, handlers)
 }
 
 // 注册GET路由
-func (router *Router) GET(path string, handlers ...Handler) RouterInterface {
-	return router.handle(http.MethodGet, path, handlers)
+func (router *Router) GET(urlPath string, handlers ...Handler) RouterInterface {
+	return router.handle(http.MethodGet, urlPath, handlers)
 }
 
 // 注册DELETE路由
-func (router *Router) DELETE(path string, handlers ...Handler) RouterInterface {
-	return router.handle(http.MethodDelete, path, handlers)
+func (router *Router) DELETE(urlPath string, handlers ...Handler) RouterInterface {
+	return router.handle(http.MethodDelete, urlPath, handlers)
 }
 
 // 注册PATCH路由
-func (router *Router) PATCH(path string, handlers ...Handler) RouterInterface {
-	return router.handle(http.MethodPatch, path, handlers)
+func (router *Router) PATCH(urlPath string, handlers ...Handler) RouterInterface {
+	return router.handle(http.MethodPatch, urlPath, handlers)
 }
 
 // 注册PUT路由
-func (router *Router) PUT(path string, handlers ...Handler) RouterInterface {
-	return router.handle(http.MethodPut, path, handlers)
+func (router *Router) PUT(urlPath string, handlers ...Handler) RouterInterface {
+	return router.handle(http.MethodPut, urlPath, handlers)
 }
 
 // 注册OPTIONS路由
-func (router *Router) OPTIONS(path string, handlers ...Handler) RouterInterface {
-	path = filepath.Clean(path)
-	return router.handle(http.MethodOptions, path, handlers)
+func (router *Router) OPTIONS(urlPath string, handlers ...Handler) RouterInterface {
+	return router.handle(http.MethodOptions, urlPath, handlers)
 }
 
 // 注册HEAD路由
-func (router *Router) HEAD(path string, handlers ...Handler) RouterInterface {
-	path = filepath.Clean(path)
-	return router.handle(http.MethodHead, path, handlers)
+func (router *Router) HEAD(urlPath string, handlers ...Handler) RouterInterface {
+	return router.handle(http.MethodHead, urlPath, handlers)
 }
 
 // 注册所有路由
-func (router *Router) Any(path string, handlers ...Handler) RouterInterface {
-	router.handle(http.MethodGet, path, handlers)
-	router.handle(http.MethodPost, path, handlers)
-	router.handle(http.MethodPut, path, handlers)
-	router.handle(http.MethodPatch, path, handlers)
-	router.handle(http.MethodHead, path, handlers)
-	router.handle(http.MethodOptions, path, handlers)
-	router.handle(http.MethodDelete, path, handlers)
-	router.handle(http.MethodConnect, path, handlers)
-	router.handle(http.MethodTrace, path, handlers)
+func (router *Router) Any(relativePath string, handlers ...Handler) RouterInterface {
+	router.handle(http.MethodGet, relativePath, handlers)
+	router.handle(http.MethodPost, relativePath, handlers)
+	router.handle(http.MethodPut, relativePath, handlers)
+	router.handle(http.MethodPatch, relativePath, handlers)
+	router.handle(http.MethodHead, relativePath, handlers)
+	router.handle(http.MethodOptions, relativePath, handlers)
+	router.handle(http.MethodDelete, relativePath, handlers)
+	router.handle(http.MethodConnect, relativePath, handlers)
+	router.handle(http.MethodTrace, relativePath, handlers)
 	return router.getRouter()
 }
 
 // 注册一个响应服务端文件的路由
-func (router *Router) File(path, file string) RouterInterface {
-	file = filepath.Clean(file)
-	if strings.Contains(path, ":") || strings.Contains(path, "*") {
-		panic("this route cannot use ':' and '*' parameter")
+func (router *Router) File(urlPath, absPath string) RouterInterface {
+	absPath = filepath.Clean(absPath)
+	if strings.Contains(urlPath, ":") || strings.Contains(urlPath, "*") {
+		panic("urlPath for this route cannot use ':' and '*'")
 	}
 	handler := func(ctx *Context) error {
-		fileInfo, err := os.Stat(file)
+		fileInfo, err := os.Stat(absPath)
 		if err != nil {
-			panic("Unable to find file '" + file + "'")
+			panic("Unable to find file '" + absPath + "'")
 		}
 		if fileInfo.IsDir() {
 			panic("This route cannot set a directory")
 		}
-		http.ServeFile(ctx.ResponseWriter, ctx.Request, file)
+		http.ServeFile(ctx.ResponseWriter, ctx.Request, absPath)
+		// ctx.Abort()
 		return nil
 	}
-	router.GET(path, handler)
-	router.HEAD(path, handler)
+	router.GET(urlPath, handler)
+	router.HEAD(urlPath, handler)
 	return router.getRouter()
 }
 
 // 注册一个响应服务端目录的路由
-func (router *Router) Dir(path, serverPath string) RouterInterface {
-	serverPath = filepath.Clean(serverPath)
-	if strings.Contains(path, ":") || strings.Contains(path, "*") {
-		panic("this route cannot use ':' and '*' parameter")
+func (router *Router) Dir(urlPath, absPath string) RouterInterface {
+	absPath = filepath.Clean(absPath)
+	if strings.Contains(urlPath, ":") || strings.Contains(urlPath, "*") {
+		panic("urlPath for this route cannot use ':' and '*'")
 	}
-
-	if serverPath == "" {
-		panic("serverPath cannot be empty")
+	if urlPath[len(urlPath)-1] != 47 {
+		panic("urlPath must end with '/'")
 	}
-	if path[len(path)-1] != 47 {
-		panic("path must end with '/'")
+	if absPath == "" {
+		panic("absPath cannot be empty")
 	}
 
 	handler := func(ctx *Context) error {
-		fileInfo, err := os.Stat(serverPath)
+		relPath := ctx.PathParams.Value("filepath")
+		finalAbsPath := path.Join(absPath, relPath)
+		_, err := os.Stat(finalAbsPath)
 		if err != nil {
-			panic("cannot find directory '" + serverPath + "'")
+			panic("Unable to find directory '" + finalAbsPath + "'")
 		}
-		if !fileInfo.IsDir() {
-			panic("This route cannot set a file")
-		}
-		http.ServeFile(ctx.ResponseWriter, ctx.Request, serverPath)
+		http.ServeFile(ctx.ResponseWriter, ctx.Request, finalAbsPath)
+		// ctx.Abort()
 		return nil
 	}
-	router.GET(path, handler)
-	router.HEAD(path, handler)
+
+	finalUrlPath := path.Join(urlPath, "/*filepath")
+	router.GET(finalUrlPath, handler)
+	router.HEAD(finalUrlPath, handler)
+
 	return router.getRouter()
 }
