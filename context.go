@@ -82,8 +82,8 @@ func (ctx *Context) next() {
 	}
 }
 
-// 精准记录事件源信息
-func (ctx *Context) Source(err error) error {
+// 在处理器函数内return一个error时，用Caller可以记录下处理器内的行号详细信息
+func (ctx *Context) Caller(err error) error {
 	if err == nil {
 		return nil
 	}

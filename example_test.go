@@ -47,11 +47,12 @@ func TestURLParams(t *testing.T) {
 		UnescapePathValues: true,
 		MaxMultipartMemory: 20 << 20,
 	})
-	app.GET("/:test/ok", func(ctx *Context) error {
-		t.Log(ctx.PathParams.Value("test"))
+	app.GET("/:path/:file", func(ctx *Context) error {
+		t.Log(ctx.PathParams.Value("path"))
+		t.Log(ctx.PathParams.Value("file"))
 		return nil
 	})
-	r, err := http.NewRequest("GET", "/haha/ok", nil)
+	r, err := http.NewRequest("GET", "/haha/hehe||123", nil)
 	if err != nil {
 		t.Error(err.Error())
 		return
@@ -294,7 +295,7 @@ func TestContextSourceEvent(t *testing.T) {
 		EventShortPath:     true,
 	})
 	app.GET("/", func(ctx *Context) error {
-		return ctx.Source(errors.New("这是用ctx.Source()返回的错误，能精准定位到事件来源"))
+		return ctx.Caller(errors.New("这是用ctx.Caller()返回的错误，能精准定位到事件来源"))
 	}, func(ctx *Context) error {
 		t.Error("处理器链的执行逻辑有异常")
 		return nil
