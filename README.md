@@ -5,7 +5,7 @@ Tsing是一个Go语言的Web框架，具有以下优秀的特性：
 - 轻量，无第三方包依赖，兼容net/http标准包
 - 统一异常处理，减少代码量，使开发者专注于业务逻辑
 
-> Tsing是汉字"青"以及同音字做为名词时的英文，例如"清华大学(Tsinghua University)"、"青岛(Tsing Tao)"。
+> Tsing 是汉字【青】以及同音字做为名词时的英文，例如：清华大学(Tsinghua University)、青岛(Tsing Tao)。
 
 
 ### 安装：
