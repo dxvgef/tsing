@@ -36,8 +36,8 @@ func (ctx *Context) reset(req *http.Request, resp http.ResponseWriter) {
 	ctx.parsed = false
 }
 
-// 解析body数据
-func (ctx *Context) parseBody() error {
+// 解析form数据
+func (ctx *Context) parseForm() error {
 	if ctx.parsed {
 		return nil
 	}
@@ -170,7 +170,7 @@ func (ctx *Context) QueryParam(key string) (string, bool) {
 
 // 获取所有POST/PATCH/PUT参数值
 func (ctx *Context) PostParams() url.Values {
-	if err := ctx.parseBody(); err != nil {
+	if err := ctx.parseForm(); err != nil {
 		return emptyValues
 	}
 	return ctx.Request.PostForm
@@ -178,7 +178,7 @@ func (ctx *Context) PostParams() url.Values {
 
 // 获取某个POST/PATCH/PUT参数值的string类型
 func (ctx *Context) Post(key string) string {
-	if err := ctx.parseBody(); err != nil {
+	if err := ctx.parseForm(); err != nil {
 		return ""
 	}
 	vs := ctx.Request.PostForm[key]
@@ -190,7 +190,7 @@ func (ctx *Context) Post(key string) string {
 
 // 获取某个POST/PATCH/PUT参数
 func (ctx *Context) PostParam(key string) (string, bool) {
-	if err := ctx.parseBody(); err != nil {
+	if err := ctx.parseForm(); err != nil {
 		return "", false
 	}
 	vs := ctx.Request.PostForm[key]
@@ -202,7 +202,7 @@ func (ctx *Context) PostParam(key string) (string, bool) {
 
 // 获取所有GET/POST/PUT参数值
 func (ctx *Context) FormParams() url.Values {
-	if err := ctx.parseBody(); err != nil {
+	if err := ctx.parseForm(); err != nil {
 		return emptyValues
 	}
 	return ctx.Request.Form
@@ -210,7 +210,7 @@ func (ctx *Context) FormParams() url.Values {
 
 // 获取某个GET/POST/PUT参数值的string类型
 func (ctx *Context) Form(key string) string {
-	if err := ctx.parseBody(); err != nil {
+	if err := ctx.parseForm(); err != nil {
 		return ""
 	}
 	vs := ctx.Request.Form[key]
@@ -222,7 +222,7 @@ func (ctx *Context) Form(key string) string {
 
 // 获取单个GET/POST/PUT参数
 func (ctx *Context) FormParam(key string) (string, bool) {
-	if err := ctx.parseBody(); err != nil {
+	if err := ctx.parseForm(); err != nil {
 		return "", false
 	}
 	vs := ctx.Request.Form[key]
