@@ -2,6 +2,8 @@ package tsing
 
 import (
 	"context"
+	"encoding/json"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
@@ -230,4 +232,16 @@ func (ctx *Context) FormParam(key string) (string, bool) {
 		return "", false
 	}
 	return ctx.Request.Form[key][0], true
+}
+
+// 将body里的json数据反序列化到传入的对象
+func (ctx *Context) UnmarshalJSON(obj interface{}) error {
+	if err := ctx.parseForm(); err != nil {
+		return err
+	}
+	body, err := ioutil.ReadAll(ctx.Request.Body)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(body, obj)
 }
