@@ -22,7 +22,7 @@ Tsing是一个Go语言的Web框架，具有以下优秀的特性：
 * [CORS跨域资源共享控制](https://github.com/dxvgef/tsing/wiki/CORS%E8%B7%A8%E5%9F%9F%E8%B5%84%E6%BA%90%E5%85%B1%E4%BA%AB%E6%8E%A7%E5%88%B6)
 * [Session](https://github.com/dxvgef/tsing/wiki/Session)
 * [JWT(JSON Web Token)](https://github.com/dxvgef/tsing/wiki/JSON-Web-Token)
-* [事件Logger](https://github.com/dxvgef/tsing/wiki/%E4%BA%8B%E4%BB%B6Logger)
+* [事件记录](https://github.com/dxvgef/tsing/wiki/%E4%BA%8B%E4%BB%B6%E8%AE%B0%E5%BD%95)
 * [优雅关闭(Graceful Shutdown)](https://github.com/dxvgef/tsing/wiki/%E4%BC%98%E9%9B%85%E5%85%B3%E9%97%AD(Graceful-Shutdown))
 
 更多示例代码请参考[/example_test.go](https://github.com/dxvgef/tsing/blob/master/example_test.go)文件
