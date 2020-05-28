@@ -1,6 +1,8 @@
 package tsing
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"log"
 	"net/http"
@@ -222,6 +224,40 @@ func TestFormParams(t *testing.T) {
 	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	app.ServeHTTP(httptest.NewRecorder(), r)
 }
+
+// 测试UnmarshalJSON
+func TestPostUnmarshalJSON(t *testing.T) {
+	type Obj struct{
+		ID int64 `json:"id"`
+		Name string `json:"name"`
+	}
+	app := New(&Config{
+		UnescapePathValues: true,
+		MaxMultipartMemory: 20 << 20,
+	})
+	app.POST("/", func(ctx *Context) error {
+		var obj Obj
+		t.Log(ctx.UnmarshalJSON(&obj))
+		return nil
+	})
+
+	var o Obj
+	o.ID=123
+	o.Name="dxvgef"
+	ob, err := json.Marshal(&o)
+	if err != nil {
+		t.Error(err.Error())
+		return
+	}
+	r, err := http.NewRequest("POST", "/", bytes.NewBuffer(ob))
+	if err != nil {
+		t.Error(err.Error())
+		return
+	}
+	r.Header.Set("Content-Type", "application/json")
+	app.ServeHTTP(httptest.NewRecorder(), r)
+}
+
 
 // 测试404事件
 func TestNotFoundEvent(t *testing.T) {
