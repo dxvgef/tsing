@@ -236,9 +236,6 @@ func (ctx *Context) FormParam(key string) (string, bool) {
 
 // 将body里的json数据反序列化到传入的对象
 func (ctx *Context) UnmarshalJSON(obj interface{}) error {
-	if err := ctx.parseForm(); err != nil {
-		return err
-	}
 	body, err := ioutil.ReadAll(ctx.Request.Body)
 	if err != nil {
 		return err
