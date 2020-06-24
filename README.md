@@ -7,11 +7,10 @@ Tsing是一个Go语言的Web框架，具有以下优秀的特性：
 
 > Tsing 是汉字【青】以及同音字做为名词时的英文，例如：清华大学(Tsinghua University)、青岛(Tsing Tao)。
 
-
-### 安装：
+## 安装：
 > go get -u github.com/dxvgef/tsing
 
-### 手册：
+## 手册：
 * [基本示例](https://github.com/dxvgef/tsing/wiki/%E5%9F%BA%E6%9C%AC%E7%A4%BA%E4%BE%8B)
 * [异常处理](https://github.com/dxvgef/tsing/wiki/%E5%BC%82%E5%B8%B8%E5%A4%84%E7%90%86)
 * [路由及路由处理器](https://github.com/dxvgef/tsing/wiki/%E8%B7%AF%E7%94%B1%E5%8F%8A%E8%B7%AF%E7%94%B1%E5%A4%84%E7%90%86%E5%99%A8)
@@ -27,10 +26,10 @@ Tsing是一个Go语言的Web框架，具有以下优秀的特性：
 
 更多示例代码请参考[/example_test.go](https://github.com/dxvgef/tsing/blob/master/example_test.go)文件
 
-### 完整的项目示例
+## 完整的项目示例
 [dxvgef/tsing-demo](https://github.com/dxvgef/tsing-demo) 是一个基于`Tsing`整合常见功能的完整示例，可以做为项目初始化使用
 
-### 基准测试
+## 基准测试
 `tsing`与`httprouter`、`echo`、`gin`等框架的基准测试对比
 <br>[dxvgef/tsing-benchmark](https://github.com/dxvgef/tsing-benchmark)
 
@@ -45,3 +44,18 @@ Benchmark_Gin_Recover-4                    31071             37423 ns/op        
 Benchmark_Echo-4                           31489             36706 ns/op               0 B/op          0 allocs/op
 Benchmark_Echo_Recover-4                   21991             53318 ns/op            9745 B/op        203 allocs/op
 ```
+
+## 相关资源
+
+- [Tsing Gateway](https://github.com/dxvgef/tsing-gateway) 开源、跨平台、去中心化集群、动态配置的API网关。
+- [Tsing Center](https://github.com/dxvgef/tsing-center) 开源、跨平台、去中心化集群、动态配置的服务中心
+
+## 用户及案例
+
+如果你在使用本项目，请通过[Issues](https://github.com/dxvgef/tsing/issues)告知我们项目的简介
+
+## 帮助/说明
+
+本项目已在多个项目的生产环境中稳定运行。如有问题可在[Issues](https://github.com/dxvgef/tsing/issues)里提出。
+
+诚邀更多的开发者参与到本项目维护中，帮助这个开源项目更好的发展
