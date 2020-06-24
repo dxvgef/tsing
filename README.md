@@ -9,10 +9,10 @@ Tsing诞生比较晚也没有刻意的宣传推广，但由于框架核心非常
 
 Tsing 是汉字【青】以及同音字做为名词时的英文，例如：清华大学(Tsinghua University)、青岛(Tsing Tao)。
 
-## 安装：
-> go get -u github.com/dxvgef/tsing
+> github.com/dxvgef/tsing
 
 ## 手册：
+
 * [基本示例](https://github.com/dxvgef/tsing/wiki/%E5%9F%BA%E6%9C%AC%E7%A4%BA%E4%BE%8B)
 * [异常处理](https://github.com/dxvgef/tsing/wiki/%E5%BC%82%E5%B8%B8%E5%A4%84%E7%90%86)
 * [路由及路由处理器](https://github.com/dxvgef/tsing/wiki/%E8%B7%AF%E7%94%B1%E5%8F%8A%E8%B7%AF%E7%94%B1%E5%A4%84%E7%90%86%E5%99%A8)
@@ -41,7 +41,7 @@ Benchmark_Gin_Recover-4                    31071             37423 ns/op        
 Benchmark_Echo-4                           31489             36706 ns/op               0 B/op          0 allocs/op
 Benchmark_Echo_Recover-4                   21991             53318 ns/op            9745 B/op        203 allocs/op
 ```
-[dxvgef/tsing-benchmark](https://github.com/dxvgef/tsing-benchmark)是`tsing`,`httprouter`,`echo`,`gin`,`chi`等框架的基准测试对比项目，不定期更新各框架的版本或加入新的框架进行测试
+[dxvgef/tsing-benchmark](https://github.com/dxvgef/tsing-benchmark)是`tsing`,`httprouter`,`echo`,`gin`,`chi`等框架的基准测试代码，不定期更新各框架的版本或加入新的框架进行测试
 
 
 ## 相关资源
