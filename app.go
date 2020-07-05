@@ -28,41 +28,14 @@ type Config struct {
 // 引擎
 type Engine struct {
 	*Router                 // 路由器
-	Config      *Config     // 配置
+	Config      Config      // 配置
 	contextPool sync.Pool   // context池
 	eventPool   sync.Pool   // event池
 	trees       methodTrees // 路由树
 }
 
-// 添加路由
-func (engine *Engine) addRoute(method, path string, handlers HandlersChain) {
-	if path[0] != '/' {
-		panic("The path must begin with '/'")
-	}
-	if method == "" {
-		panic("HTTP method can not be empty")
-	}
-	if len(handlers) == 0 {
-		panic("[" + method + "]" + path + " must be at least one handler")
-	}
-
-	// 查找方法是否存在
-	root := engine.trees.get(method)
-	// 如果方法不存在
-	if root == nil {
-		// 创建一个新的根节点
-		root = new(node)
-		root.fullPath = "/"
-		engine.trees = append(engine.trees, methodTree{
-			method: method,
-			root:   root,
-		})
-	}
-	root.addRoute(path, handlers)
-}
-
 // 创建一个新引擎
-func New(config *Config) *Engine {
+func New(config Config) *Engine {
 	if config.MaxMultipartMemory == 0 {
 		config.MaxMultipartMemory = MaxMultipartMemory
 	}
@@ -94,7 +67,7 @@ func New(config *Config) *Engine {
 	// 设置event池
 	if config.EventHandler != nil {
 		engine.eventPool.New = func() interface{} {
-			return &Event{
+			return Event{
 				Status:  0,
 				Message: nil,
 				Source:  nil,
@@ -175,4 +148,31 @@ func (engine *Engine) handleRequest(ctx *Context) {
 	// 触发404事件
 	ctx.handlers = nil
 	engine.notFoundEvent(ctx.ResponseWriter, ctx.Request)
+}
+
+// 添加路由
+func (engine *Engine) addRoute(method, path string, handlers HandlersChain) {
+	if path[0] != '/' {
+		panic("The path must begin with '/'")
+	}
+	if method == "" {
+		panic("HTTP method can not be empty")
+	}
+	if len(handlers) == 0 {
+		panic("[" + method + "]" + path + " must be at least one handler")
+	}
+
+	// 查找方法是否存在
+	root := engine.trees.get(method)
+	// 如果方法不存在
+	if root == nil {
+		// 创建一个新的根节点
+		root = new(node)
+		root.fullPath = "/"
+		engine.trees = append(engine.trees, methodTree{
+			method: method,
+			root:   root,
+		})
+	}
+	root.addRoute(path, handlers)
 }

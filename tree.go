@@ -29,9 +29,10 @@ func (ps PathParams) Value(name string) (value string) {
 	return
 }
 
+// 方法树
 type methodTree struct {
-	method string
-	root   *node
+	method string   // 方法
+	root   *node    // 根节点
 }
 
 type methodTrees []methodTree
@@ -43,35 +44,6 @@ func (trees methodTrees) get(method string) *node {
 		}
 	}
 	return nil
-}
-
-func min(a, b int) int {
-	if a <= b {
-		return a
-	}
-	return b
-}
-
-func longestCommonPrefix(a, b string) int {
-	i := 0
-	max := min(len(a), len(b))
-	for i < max && a[i] == b[i] {
-		i++
-	}
-	return i
-}
-
-func countParams(path string) uint8 {
-	var n uint
-	for i := 0; i < len(path); i++ {
-		if path[i] == ':' || path[i] == '*' {
-			n++
-		}
-	}
-	if n >= 255 {
-		return 255
-	}
-	return uint8(n)
 }
 
 type nodeType uint8

@@ -27,7 +27,7 @@ type _Source struct {
 }
 
 // 事件处理器
-type EventHandler func(*Event)
+type EventHandler func(Event)
 
 func (e *Event) reset(resp http.ResponseWriter, req *http.Request) {
 	e.Message = nil
@@ -45,7 +45,7 @@ func (engine *Engine) handlerErrorEvent(resp http.ResponseWriter, req *http.Requ
 	}
 
 	// 从池中取出一个ctx
-	event := engine.eventPool.Get().(*Event)
+	event := engine.eventPool.Get().(Event)
 	event.reset(resp, req)
 
 	event.Status = 500
@@ -78,7 +78,7 @@ func (engine *Engine) contextSourceHandler(resp http.ResponseWriter, req *http.R
 	}
 
 	// 从池中取出一个ctx
-	event := engine.eventPool.Get().(*Event)
+	event := engine.eventPool.Get().(Event)
 	event.reset(resp, req)
 
 	event.Status = 500
@@ -131,7 +131,7 @@ func (engine *Engine) panicEvent(resp http.ResponseWriter, req *http.Request, er
 	}
 
 	// 从池中取出一个ctx
-	event := engine.eventPool.Get().(*Event)
+	event := engine.eventPool.Get().(Event)
 	event.reset(resp, req)
 
 	event.Status = 500
@@ -195,7 +195,7 @@ func (engine *Engine) notFoundEvent(resp http.ResponseWriter, req *http.Request)
 	}
 
 	// 从池中取出一个ctx
-	event := engine.eventPool.Get().(*Event)
+	event := engine.eventPool.Get().(Event)
 	event.reset(resp, req)
 
 	event.Status = http.StatusNotFound
@@ -213,7 +213,7 @@ func (engine *Engine) methodNotAllowedEvent(resp http.ResponseWriter, req *http.
 	}
 
 	// 从池中取出一个ctx
-	event := engine.eventPool.Get().(*Event)
+	event := engine.eventPool.Get().(Event)
 	event.reset(resp, req)
 
 	event.Status = http.StatusMethodNotAllowed
