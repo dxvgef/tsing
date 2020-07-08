@@ -23,6 +23,7 @@ type Config struct {
 	EventHandlerError  bool         // 事件-启用处理器返回的错误
 	EventSource        bool         // 事件-启用来源
 	Recover            bool         // 自动恢复处理器的panic
+	HandleOPTIONS      bool         // 自动处理OPTIONS方法的请求
 }
 
 // 引擎
@@ -89,6 +90,12 @@ func (engine *Engine) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 				engine.panicEvent(resp, req, err)
 			}
 		}()
+	}
+
+	// 自动处理OPTIONS请求
+	if req.Method == "OPTIONS" {
+		resp.WriteHeader(http.StatusNoContent)
+		return
 	}
 
 	// 从池中取出一个ctx
