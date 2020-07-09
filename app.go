@@ -92,12 +92,6 @@ func (engine *Engine) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 		}()
 	}
 
-	// 自动处理OPTIONS请求
-	if req.Method == "OPTIONS" {
-		resp.WriteHeader(http.StatusNoContent)
-		return
-	}
-
 	// 从池中取出一个ctx
 	ctx := engine.contextPool.Get().(*Context)
 	// 重置取出的ctx
@@ -125,7 +119,6 @@ func (engine *Engine) handleRequest(ctx *Context) {
 		if engine.trees[k].method != httpMethod {
 			continue
 		}
-
 		root := engine.trees[k].root
 		value := root.getValue(rPath, ctx.PathParams, unescape)
 		if value.handlers != nil {
@@ -139,13 +132,18 @@ func (engine *Engine) handleRequest(ctx *Context) {
 		}
 		break
 	}
-
 	for k := range engine.trees {
 		if engine.trees[k].method == httpMethod {
 			continue
 		}
 		if value := engine.trees[k].root.getValue(rPath, nil, unescape); value.handlers != nil {
 			ctx.handlers = nil
+			// 自动处理OPTIONS请求
+			if engine.Config.HandleOPTIONS {
+				// 自动处理OPTIONS请求
+				ctx.ResponseWriter.WriteHeader(http.StatusNoContent)
+				return
+			}
 			// 触发405事件
 			engine.methodNotAllowedEvent(ctx.ResponseWriter, ctx.Request)
 			return
