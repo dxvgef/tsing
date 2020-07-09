@@ -23,7 +23,6 @@ type Config struct {
 	EventHandlerError  bool         // 事件-启用处理器返回的错误
 	EventSource        bool         // 事件-启用来源
 	Recover            bool         // 自动恢复处理器的panic
-	HandleOPTIONS      bool         // 自动处理OPTIONS方法的请求
 }
 
 // 引擎
@@ -138,12 +137,6 @@ func (engine *Engine) handleRequest(ctx *Context) {
 		}
 		if value := engine.trees[k].root.getValue(rPath, nil, unescape); value.handlers != nil {
 			ctx.handlers = nil
-			// 自动处理OPTIONS请求
-			if engine.Config.HandleOPTIONS {
-				// 自动处理OPTIONS请求
-				ctx.ResponseWriter.WriteHeader(http.StatusNoContent)
-				return
-			}
 			// 触发405事件
 			engine.methodNotAllowedEvent(ctx.ResponseWriter, ctx.Request)
 			return
