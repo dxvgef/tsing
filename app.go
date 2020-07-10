@@ -2,6 +2,7 @@ package tsing
 
 import (
 	"net/http"
+	"strconv"
 	"sync"
 )
 
@@ -23,6 +24,12 @@ type Config struct {
 	EventHandlerError  bool         // 事件-启用处理器返回的错误
 	EventSource        bool         // 事件-启用来源
 	Recover            bool         // 自动恢复处理器的panic
+	CORS               bool         // 是否启用自动CORS处理
+	AllowOrigins       string
+	ExposeHeaders      string
+	AllowMethods       string
+	AllowHeaders       string
+	AllowCredentials   bool
 }
 
 // 引擎
@@ -38,6 +45,20 @@ type Engine struct {
 func New(config Config) *Engine {
 	if config.MaxMultipartMemory == 0 {
 		config.MaxMultipartMemory = MaxMultipartMemory
+	}
+	if config.CORS {
+		if config.AllowOrigins == "" {
+			config.AllowOrigins = "*"
+		}
+		if config.AllowHeaders == "" {
+			config.AllowHeaders = "*"
+		}
+		if config.AllowMethods == "" {
+			config.AllowMethods = "*"
+		}
+		if config.ExposeHeaders == "" {
+			config.ExposeHeaders = "*"
+		}
 	}
 	// 初始化一个引擎
 	engine := &Engine{
@@ -125,6 +146,11 @@ func (engine *Engine) handleRequest(ctx *Context) {
 			ctx.handlers = value.handlers
 			ctx.PathParams = value.params
 			ctx.fullPath = value.fullPath
+			ctx.ResponseWriter.Header().Set("Access-Control-Allow-Origin", engine.Config.AllowOrigins)
+			ctx.ResponseWriter.Header().Set("Access-Control-Allow-Methods", engine.Config.AllowMethods)
+			ctx.ResponseWriter.Header().Set("Access-Control-Allow-Headers", engine.Config.AllowHeaders)
+			ctx.ResponseWriter.Header().Set("Access-Control-Expose-Headers", engine.Config.ExposeHeaders)
+			ctx.ResponseWriter.Header().Set("Access-Control-Allow-Credentials", strconv.FormatBool(engine.Config.AllowCredentials))
 			// 执行ctx中的处理器
 			ctx.next()
 			return
@@ -137,7 +163,17 @@ func (engine *Engine) handleRequest(ctx *Context) {
 		}
 		if value := engine.trees[k].root.getValue(rPath, nil, unescape); value.handlers != nil {
 			ctx.handlers = nil
-			// 触发405事件
+			// 自动处理OPTIONS请求
+			if ctx.Request.Method == "OPTIONS" {
+				ctx.ResponseWriter.Header().Set("Access-Control-Allow-Origin", engine.Config.AllowOrigins)
+				ctx.ResponseWriter.Header().Set("Access-Control-Allow-Methods", engine.Config.AllowMethods)
+				ctx.ResponseWriter.Header().Set("Access-Control-Allow-Headers", engine.Config.AllowHeaders)
+				ctx.ResponseWriter.Header().Set("Access-Control-Expose-Headers", engine.Config.ExposeHeaders)
+				ctx.ResponseWriter.Header().Set("Access-Control-Allow-Credentials", strconv.FormatBool(engine.Config.AllowCredentials))
+				ctx.ResponseWriter.WriteHeader(http.StatusNoContent)
+				ctx.Abort()
+				return
+			}
 			engine.methodNotAllowedEvent(ctx.ResponseWriter, ctx.Request)
 			return
 		}
