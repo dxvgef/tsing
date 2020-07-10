@@ -1,6 +1,7 @@
 package tsing
 
 import (
+	"log"
 	"net/http"
 	"strconv"
 	"sync"
@@ -146,11 +147,10 @@ func (engine *Engine) handleRequest(ctx *Context) {
 			ctx.handlers = value.handlers
 			ctx.PathParams = value.params
 			ctx.fullPath = value.fullPath
-			ctx.ResponseWriter.Header().Set("Access-Control-Allow-Origin", engine.Config.AllowOrigins)
-			ctx.ResponseWriter.Header().Set("Access-Control-Allow-Methods", engine.Config.AllowMethods)
-			ctx.ResponseWriter.Header().Set("Access-Control-Allow-Headers", engine.Config.AllowHeaders)
-			ctx.ResponseWriter.Header().Set("Access-Control-Expose-Headers", engine.Config.ExposeHeaders)
-			ctx.ResponseWriter.Header().Set("Access-Control-Allow-Credentials", strconv.FormatBool(engine.Config.AllowCredentials))
+			// 自动处理OPTIONS请求
+			if engine.Config.CORS {
+				engine.setCORS(ctx.ResponseWriter)
+			}
 			// 执行ctx中的处理器
 			ctx.next()
 			return
@@ -161,18 +161,17 @@ func (engine *Engine) handleRequest(ctx *Context) {
 		if engine.trees[k].method == httpMethod {
 			continue
 		}
+		log.Println(ctx.Request.Method, ctx.Request.RequestURI, "触发了405")
 		if value := engine.trees[k].root.getValue(rPath, nil, unescape); value.handlers != nil {
 			ctx.handlers = nil
 			// 自动处理OPTIONS请求
-			if ctx.Request.Method == "OPTIONS" {
-				ctx.ResponseWriter.Header().Set("Access-Control-Allow-Origin", engine.Config.AllowOrigins)
-				ctx.ResponseWriter.Header().Set("Access-Control-Allow-Methods", engine.Config.AllowMethods)
-				ctx.ResponseWriter.Header().Set("Access-Control-Allow-Headers", engine.Config.AllowHeaders)
-				ctx.ResponseWriter.Header().Set("Access-Control-Expose-Headers", engine.Config.ExposeHeaders)
-				ctx.ResponseWriter.Header().Set("Access-Control-Allow-Credentials", strconv.FormatBool(engine.Config.AllowCredentials))
-				ctx.ResponseWriter.WriteHeader(http.StatusNoContent)
-				ctx.Abort()
-				return
+			if engine.Config.CORS {
+				engine.setCORS(ctx.ResponseWriter)
+				if ctx.Request.Method == "OPTIONS" {
+					ctx.ResponseWriter.WriteHeader(http.StatusNoContent)
+					ctx.Abort()
+					return
+				}
 			}
 			engine.methodNotAllowedEvent(ctx.ResponseWriter, ctx.Request)
 			return
@@ -181,6 +180,17 @@ func (engine *Engine) handleRequest(ctx *Context) {
 
 	// 触发404事件
 	ctx.handlers = nil
+	log.Println(ctx.Request.Method, ctx.Request.RequestURI, "触发了404")
+	// 自动处理OPTIONS请求
+	if engine.Config.CORS {
+		engine.setCORS(ctx.ResponseWriter)
+		if ctx.Request.Method == "OPTIONS" {
+			log.Println(ctx.Request.Method, ctx.Request.RequestURI, "自动响应204")
+			ctx.ResponseWriter.WriteHeader(http.StatusNoContent)
+			ctx.Abort()
+		}
+	}
+	// engine.methodNotAllowedEvent(ctx.ResponseWriter, ctx.Request)
 	engine.notFoundEvent(ctx.ResponseWriter, ctx.Request)
 }
 
@@ -209,4 +219,13 @@ func (engine *Engine) addRoute(method, path string, handlers HandlersChain) {
 		})
 	}
 	root.addRoute(path, handlers)
+}
+
+// 在resp中设置CORS相关的头信息
+func (engine *Engine) setCORS(resp http.ResponseWriter) {
+	resp.Header().Set("Access-Control-Allow-Origin", engine.Config.AllowOrigins)
+	resp.Header().Set("Access-Control-Allow-Methods", engine.Config.AllowMethods)
+	resp.Header().Set("Access-Control-Allow-Headers", engine.Config.AllowHeaders)
+	resp.Header().Set("Access-Control-Expose-Headers", engine.Config.ExposeHeaders)
+	resp.Header().Set("Access-Control-Allow-Credentials", strconv.FormatBool(engine.Config.AllowCredentials))
 }
