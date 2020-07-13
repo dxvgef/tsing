@@ -221,7 +221,7 @@ func (engine *Engine) setCORS(req *http.Request, resp http.ResponseWriter) {
 	} else {
 		resp.Header().Set("Access-Control-Allow-Origin", engine.Config.AllowOrigins)
 	}
-	resp.Header().Set("Access-Control-Allow-Methods", engine.Config.AllowOrigins)
+	resp.Header().Set("Access-Control-Allow-Methods", engine.Config.AllowMethods)
 	resp.Header().Set("Access-Control-Allow-Headers", engine.Config.AllowHeaders)
 	resp.Header().Set("Access-Control-Expose-Headers", engine.Config.ExposeHeaders)
 	resp.Header().Set("Access-Control-Allow-Credentials", strconv.FormatBool(engine.Config.AllowCredentials))
