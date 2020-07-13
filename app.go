@@ -1,7 +1,6 @@
 package tsing
 
 import (
-	"log"
 	"net/http"
 	"strconv"
 	"sync"
@@ -161,7 +160,6 @@ func (engine *Engine) handleRequest(ctx *Context) {
 		if engine.trees[k].method == httpMethod {
 			continue
 		}
-		log.Println(ctx.Request.Method, ctx.Request.RequestURI, "触发了405")
 		if value := engine.trees[k].root.getValue(rPath, nil, unescape); value.handlers != nil {
 			ctx.handlers = nil
 			// 自动处理OPTIONS请求
@@ -180,12 +178,10 @@ func (engine *Engine) handleRequest(ctx *Context) {
 
 	// 触发404事件
 	ctx.handlers = nil
-	log.Println(ctx.Request.Method, ctx.Request.RequestURI, "触发了404")
 	// 自动处理OPTIONS请求
 	if engine.Config.CORS {
 		engine.setCORS(ctx.ResponseWriter)
 		if ctx.Request.Method == "OPTIONS" {
-			log.Println(ctx.Request.Method, ctx.Request.RequestURI, "自动响应204")
 			ctx.ResponseWriter.WriteHeader(http.StatusNoContent)
 			ctx.Abort()
 		}
