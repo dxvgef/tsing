@@ -67,6 +67,7 @@ func (engine *Engine) handlerErrorEvent(resp http.ResponseWriter, req *http.Requ
 	}
 
 	engine.Config.EventHandler(event)
+	// nolint:staticcheck
 	engine.eventPool.Put(event)
 }
 
@@ -121,6 +122,8 @@ func (engine *Engine) contextSourceHandler(resp http.ResponseWriter, req *http.R
 	}
 
 	engine.Config.EventHandler(event)
+
+	// nolint:staticcheck
 	engine.eventPool.Put(event)
 }
 
@@ -184,7 +187,7 @@ func (engine *Engine) panicEvent(resp http.ResponseWriter, req *http.Request, er
 
 	engine.Config.EventHandler(event)
 
-	// 将event放回池中
+	// nolint:staticcheck
 	engine.eventPool.Put(event)
 }
 
@@ -203,6 +206,7 @@ func (engine *Engine) notFoundEvent(resp http.ResponseWriter, req *http.Request)
 
 	engine.Config.EventHandler(event)
 
+	// nolint:staticcheck
 	engine.eventPool.Put(event)
 }
 
@@ -221,5 +225,6 @@ func (engine *Engine) methodNotAllowedEvent(resp http.ResponseWriter, req *http.
 
 	engine.Config.EventHandler(event)
 
+	// nolint:staticcheck
 	engine.eventPool.Put(event)
 }
