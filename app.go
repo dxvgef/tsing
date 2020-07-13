@@ -47,11 +47,11 @@ func New(config Config) *Engine {
 		config.MaxMultipartMemory = MaxMultipartMemory
 	}
 	if config.CORS {
-		if config.AllowHeaders == "" {
-			config.AllowHeaders = "GET,POST,PUT,DELETE,OPTIONS,PATCH"
-		}
 		if config.AllowMethods == "" {
-			config.AllowMethods = "*"
+			config.AllowMethods = "GET,POST,PUT,DELETE,OPTIONS,PATCH"
+		}
+		if config.AllowHeaders == "" {
+			config.AllowHeaders = "*"
 		}
 		if config.ExposeHeaders == "" {
 			config.ExposeHeaders = "*"
