@@ -47,11 +47,8 @@ func New(config Config) *Engine {
 		config.MaxMultipartMemory = MaxMultipartMemory
 	}
 	if config.CORS {
-		if config.AllowOrigins == "" {
-			config.AllowOrigins = "*"
-		}
 		if config.AllowHeaders == "" {
-			config.AllowHeaders = "*"
+			config.AllowHeaders = "GET,POST,PUT,DELETE,OPTIONS,PATCH"
 		}
 		if config.AllowMethods == "" {
 			config.AllowMethods = "*"
@@ -148,7 +145,7 @@ func (engine *Engine) handleRequest(ctx *Context) {
 			ctx.fullPath = value.fullPath
 			// 自动处理OPTIONS请求
 			if engine.Config.CORS {
-				engine.setCORS(ctx.ResponseWriter)
+				engine.setCORS(ctx.Request, ctx.ResponseWriter)
 			}
 			// 执行ctx中的处理器
 			ctx.next()
@@ -164,7 +161,7 @@ func (engine *Engine) handleRequest(ctx *Context) {
 			ctx.handlers = nil
 			// 自动处理OPTIONS请求
 			if engine.Config.CORS {
-				engine.setCORS(ctx.ResponseWriter)
+				engine.setCORS(ctx.Request, ctx.ResponseWriter)
 				if ctx.Request.Method == "OPTIONS" {
 					ctx.ResponseWriter.WriteHeader(http.StatusNoContent)
 					ctx.Abort()
@@ -180,7 +177,7 @@ func (engine *Engine) handleRequest(ctx *Context) {
 	ctx.handlers = nil
 	// 自动处理OPTIONS请求
 	if engine.Config.CORS {
-		engine.setCORS(ctx.ResponseWriter)
+		engine.setCORS(ctx.Request, ctx.ResponseWriter)
 		if ctx.Request.Method == "OPTIONS" {
 			ctx.ResponseWriter.WriteHeader(http.StatusNoContent)
 			ctx.Abort()
@@ -218,8 +215,12 @@ func (engine *Engine) addRoute(method, path string, handlers HandlersChain) {
 }
 
 // 在resp中设置CORS相关的头信息
-func (engine *Engine) setCORS(resp http.ResponseWriter) {
-	resp.Header().Set("Access-Control-Allow-Origin", engine.Config.AllowOrigins)
+func (engine *Engine) setCORS(req *http.Request, resp http.ResponseWriter) {
+	if engine.Config.AllowOrigins == "" {
+		resp.Header().Set("Access-Control-Allow-Origin", req.Header.Get("Origin"))
+	} else {
+		resp.Header().Set("Access-Control-Allow-Origin", engine.Config.AllowOrigins)
+	}
 	resp.Header().Set("Access-Control-Allow-Methods", engine.Config.AllowMethods)
 	resp.Header().Set("Access-Control-Allow-Headers", engine.Config.AllowHeaders)
 	resp.Header().Set("Access-Control-Expose-Headers", engine.Config.ExposeHeaders)
