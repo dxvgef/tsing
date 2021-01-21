@@ -31,8 +31,8 @@ func (ps PathParams) Value(name string) (value string) {
 
 // 方法树
 type methodTree struct {
-	method string   // 方法
-	root   *node    // 根节点
+	method string // 方法
+	root   *node  // 根节点
 }
 
 type methodTrees []methodTree
@@ -140,7 +140,7 @@ walk:
 
 			n.children = []*node{&child}
 			// []byte for proper unicode char conversion, see #65
-			n.indices = string([]byte{n.path[i]})
+			n.indices = bytesToStr([]byte{n.path[i]})
 			n.path = path[:i]
 			n.handlers = nil
 			n.wildChild = false
@@ -205,7 +205,7 @@ walk:
 			// Otherwise insert it
 			if c != ':' && c != '*' {
 				// []byte for proper unicode char conversion, see #65
-				n.indices += string([]byte{c})
+				n.indices += bytesToStr([]byte{c})
 				child := &node{
 					maxParams: numParams,
 					fullPath:  fullPath,
@@ -230,8 +230,9 @@ walk:
 // Search for a wildcard segment and check the name for invalid characters.
 // Returns -1 as index, if no wildcard war found.
 func findWildcard(path string) (wildcard string, i int, valid bool) {
+	p := strToBytes(path)
 	// Find start
-	for start, c := range []byte(path) {
+	for start, c := range p {
 		// A wildcard starts with ':' (param) or '*' (catch-all)
 		if c != ':' && c != '*' {
 			continue
@@ -346,7 +347,7 @@ func (n *node) insertChild(numParams uint8, path string, fullPath string, handle
 			n.maxParams = 1
 		}
 		n.children = []*node{child}
-		n.indices = string('/')
+		n.indices = "/"
 		n = child
 		n.priority++
 
@@ -441,6 +442,7 @@ walk: // Outer loop for walking the tree
 
 			// handle wildcard child
 			n = n.children[0]
+			// nolint(exhaustive)
 			switch n.nType {
 			case param:
 				// find param end (either '/' or path end)
