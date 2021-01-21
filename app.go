@@ -14,21 +14,21 @@ type HandlersChain []Handler
 
 // 引擎配置
 type Config struct {
-	UseRawPath         bool         // 使用url.RawPath查找参数
-	UnescapePathValues bool         // 反转义路由参数
-	MaxMultipartMemory int64        // 允许的请求Body大小(默认1 << 20 = 1MB)
-	EventHandler       EventHandler // 事件-处理器函数，如果不赋值，则不启用事件
-	EventTrace         bool         // 事件-启用跟踪信息
-	EventShortPath     bool         // 事件-启用短文件路径
-	RootPath           string       // 应用的根路径
-	EventHandlerError  bool         // 事件-启用处理器返回的错误
-	EventSource        bool         // 事件-启用来源
-	Recover            bool         // 自动恢复处理器的panic
-	CORS               bool         // 是否启用自动CORS处理
+	RootPath           string // 应用的根路径
 	AllowOrigins       string
 	ExposeHeaders      string
 	AllowMethods       string
 	AllowHeaders       string
+	MaxMultipartMemory int64        // 允许的请求Body大小(默认1 << 20 = 1MB)
+	EventHandler       EventHandler // 事件-处理器函数，如果不赋值，则不启用事件
+	UseRawPath         bool         // 使用url.RawPath查找参数
+	UnescapePathValues bool         // 反转义路由参数
+	EventTrace         bool         // 事件-启用跟踪信息
+	EventShortPath     bool         // 事件-启用短文件路径
+	EventHandlerError  bool         // 事件-启用处理器返回的错误
+	EventSource        bool         // 事件-启用来源
+	Recover            bool         // 自动恢复处理器的panic
+	CORS               bool         // 是否启用自动CORS处理
 	AllowCredentials   bool
 }
 
