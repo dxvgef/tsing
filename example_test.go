@@ -2,6 +2,7 @@ package tsing
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"log"
@@ -10,6 +11,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 )
 
 // 事件处理器
@@ -35,7 +37,9 @@ func TestEcho(t *testing.T) {
 		t.Log("Hello !")
 		return nil
 	})
-	r, err := http.NewRequest("GET", "/", nil)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	r, err := http.NewRequestWithContext(ctx, "GET", "/", nil)
 	if err != nil {
 		t.Error(err.Error())
 		return
@@ -54,7 +58,9 @@ func TestURLParams(t *testing.T) {
 		t.Log(ctx.PathParams.Value("file"))
 		return nil
 	})
-	r, err := http.NewRequest("GET", "/haha/hehe||123", nil)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	r, err := http.NewRequestWithContext(ctx, "GET", "/haha/hehe||123", nil)
 	if err != nil {
 		t.Error(err.Error())
 		return
@@ -78,7 +84,9 @@ func TestContext(t *testing.T) {
 		t.Log(2, ctx.Request.URL.Path, "取值：", ctx.GetValue("test"))
 		return nil
 	})
-	r, err := http.NewRequest("GET", "/context", nil)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	r, err := http.NewRequestWithContext(ctx, "GET", "/context", nil)
 	if err != nil {
 		t.Error(err.Error())
 		return
@@ -105,7 +113,9 @@ func TestGroup(t *testing.T) {
 		t.Log(3, ctx.Request.URL.Path, "取值：", ctx.GetValue("test"))
 		return nil
 	})
-	r, err := http.NewRequest("GET", "/group/object", nil)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	r, err := http.NewRequestWithContext(ctx, "GET", "/group/object", nil)
 	if err != nil {
 		t.Error(err.Error())
 		return
@@ -129,7 +139,9 @@ func TestAbort(t *testing.T) {
 		t.Log(3, ctx.Request.URL.Path)
 		return nil
 	})
-	r, err := http.NewRequest("GET", "/group/object", nil)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	r, err := http.NewRequestWithContext(ctx, "GET", "/group/object", nil)
 	if err != nil {
 		t.Error(err.Error())
 		return
@@ -154,7 +166,9 @@ func TestAppend(t *testing.T) {
 		t.Log(3, ctx.Request.URL.Path)
 		return nil
 	})
-	r, err := http.NewRequest("GET", "/test", nil)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	r, err := http.NewRequestWithContext(ctx, "GET", "/test", nil)
 	if err != nil {
 		t.Error(err.Error())
 		return
@@ -172,7 +186,9 @@ func TestQueryParams(t *testing.T) {
 		t.Log(ctx.QueryParams())
 		return nil
 	})
-	r, err := http.NewRequest("GET", "/object?a=1&b=2", nil)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	r, err := http.NewRequestWithContext(ctx, "GET", "/object?a=1&b=2", nil)
 	if err != nil {
 		t.Error(err.Error())
 		return
@@ -194,7 +210,9 @@ func TestPostParams(t *testing.T) {
 	v := url.Values{}
 	v.Add("a", "1")
 	v.Add("b", "2")
-	r, err := http.NewRequest("POST", "/object", strings.NewReader(v.Encode()))
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	r, err := http.NewRequestWithContext(ctx, "POST", "/object", strings.NewReader(v.Encode()))
 	if err != nil {
 		t.Error(err.Error())
 		return
@@ -217,7 +235,9 @@ func TestFormParams(t *testing.T) {
 	v := url.Values{}
 	v.Add("c", "3")
 	v.Add("d", "4")
-	r, err := http.NewRequest("POST", "/object?a=1&b=2", strings.NewReader(v.Encode()))
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	r, err := http.NewRequestWithContext(ctx, "POST", "/object?a=1&b=2", strings.NewReader(v.Encode()))
 	if err != nil {
 		t.Error(err.Error())
 		return
@@ -238,7 +258,7 @@ func TestPostUnmarshalJSON(t *testing.T) {
 	})
 	app.POST("/", func(ctx *Context) error {
 		var obj Obj
-		t.Log(ctx.UnmarshalJSON(&obj))
+		t.Log(ctx.ParseJSON(&obj))
 		return nil
 	})
 
@@ -250,7 +270,9 @@ func TestPostUnmarshalJSON(t *testing.T) {
 		t.Error(err.Error())
 		return
 	}
-	r, err := http.NewRequest("POST", "/", bytes.NewBuffer(ob))
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	r, err := http.NewRequestWithContext(ctx, "POST", "/", bytes.NewBuffer(ob))
 	if err != nil {
 		t.Error(err.Error())
 		return
@@ -266,7 +288,9 @@ func TestNotFoundEvent(t *testing.T) {
 		UnescapePathValues: true,
 		EventHandler:       eventHandler,
 	})
-	r, err := http.NewRequest("GET", "/404", nil)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	r, err := http.NewRequestWithContext(ctx, "GET", "/404", nil)
 	if err != nil {
 		t.Error(err.Error())
 		return
@@ -284,7 +308,9 @@ func TestMethodNotAllowedEvent(t *testing.T) {
 	app.POST("/", func(ctx *Context) error {
 		return nil
 	})
-	r, err := http.NewRequest("GET", "/", nil)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	r, err := http.NewRequestWithContext(ctx, "GET", "/", nil)
 	if err != nil {
 		t.Error(err.Error())
 		return
@@ -310,7 +336,9 @@ func TestHandlerErrorEvent(t *testing.T) {
 		t.Error("处理器链的执行逻辑有异常")
 		return nil
 	})
-	r, err := http.NewRequest("GET", "/", nil)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	r, err := http.NewRequestWithContext(ctx, "GET", "/", nil)
 	if err != nil {
 		t.Error(err.Error())
 		return
@@ -336,7 +364,9 @@ func TestContextSourceEvent(t *testing.T) {
 		t.Error("处理器链的执行逻辑有异常")
 		return nil
 	})
-	r, err := http.NewRequest("GET", "/", nil)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	r, err := http.NewRequestWithContext(ctx, "GET", "/", nil)
 	if err != nil {
 		t.Error(err.Error())
 		return
@@ -359,7 +389,61 @@ func TestPanicEvent(t *testing.T) {
 	app.GET("/", func(ctx *Context) error {
 		panic("这是panic消息")
 	})
-	r, err := http.NewRequest("GET", "/", nil)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	r, err := http.NewRequestWithContext(ctx, "GET", "/", nil)
+	if err != nil {
+		t.Error(err.Error())
+		return
+	}
+	app.ServeHTTP(httptest.NewRecorder(), r)
+}
+
+// 测试输出string
+func TestString(t *testing.T) {
+	app := New(Config{
+		RootPath:           getRootPath(),
+		UnescapePathValues: true,
+		MaxMultipartMemory: 2 << 20,
+		EventHandler:       eventHandler,
+		EventTrace:         true,
+		EventSource:        true,
+		Recover:            true,
+		EventShortPath:     true,
+	})
+	app.GET("/", func(ctx *Context) error {
+		return ctx.String(200, "ok")
+	})
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	r, err := http.NewRequestWithContext(ctx, "GET", "/", nil)
+	if err != nil {
+		t.Error(err.Error())
+		return
+	}
+	app.ServeHTTP(httptest.NewRecorder(), r)
+}
+
+// 测试输出JSON
+func TestJSON(t *testing.T) {
+	app := New(Config{
+		RootPath:           getRootPath(),
+		UnescapePathValues: true,
+		MaxMultipartMemory: 2 << 20,
+		EventHandler:       eventHandler,
+		EventTrace:         true,
+		EventSource:        true,
+		Recover:            true,
+		EventShortPath:     true,
+	})
+	app.GET("/", func(ctx *Context) error {
+		data := make(map[string]interface{})
+		data["test"] = "ok"
+		return ctx.JSON(200, &data)
+	})
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	r, err := http.NewRequestWithContext(ctx, "GET", "/", nil)
 	if err != nil {
 		t.Error(err.Error())
 		return
