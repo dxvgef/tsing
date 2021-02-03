@@ -122,16 +122,6 @@ func (ctx *Context) GetValue(key interface{}) interface{} {
 	return ctx.Request.Context().Value(key)
 }
 
-// 向客户端发送重定向响应
-func (ctx *Context) Redirect(code int, url string) {
-	if code < 300 || code > 308 {
-		ctx.engine.panicEvent(ctx.ResponseWriter, ctx.Request, "The status code can only be 30x")
-		return
-	}
-	ctx.ResponseWriter.Header().Set("Location", url)
-	ctx.ResponseWriter.WriteHeader(code)
-}
-
 // 获得客户端真实IP
 func (ctx *Context) RemoteIP() string {
 	ra := ctx.Request.RemoteAddr
@@ -234,11 +224,49 @@ func (ctx *Context) FormParam(key string) (string, bool) {
 	return ctx.Request.Form[key][0], true
 }
 
-// nolint 将body里的json数据反序列化到传入的对象
-func (ctx *Context) UnmarshalJSON(obj interface{}) error {
+// nolint 将json格式的body数据反序列化到传入的对象
+func (ctx *Context) ParseJSON(obj interface{}) error {
 	body, err := ioutil.ReadAll(ctx.Request.Body)
 	if err != nil {
 		return err
 	}
 	return json.Unmarshal(body, obj)
+}
+
+// 向客户端发送重定向响应
+func (ctx *Context) Redirect(code int, url string) {
+	if code < 300 || code > 308 {
+		ctx.engine.panicEvent(ctx.ResponseWriter, ctx.Request, "The status code can only be 30x")
+		return
+	}
+	ctx.ResponseWriter.Header().Set("Location", url)
+	ctx.ResponseWriter.WriteHeader(code)
+}
+
+// 输出字符串
+func (ctx *Context) String(status int, data string, charset ...string) error {
+	if len(charset) == 0 {
+		ctx.ResponseWriter.Header().Set("Content-Type", "text/plain; charset=UTF-8")
+	} else {
+		ctx.ResponseWriter.Header().Set("Content-Type", "text/plain; charset="+charset[0])
+	}
+	ctx.ResponseWriter.WriteHeader(status)
+	_, err := ctx.ResponseWriter.Write(strToBytes(data))
+	return err
+}
+
+// 输出JSON
+func (ctx *Context) JSON(status int, data interface{}, charset ...string) error {
+	dataBytes, err := json.Marshal(&data)
+	if err != nil {
+		return err
+	}
+	if len(charset) == 0 {
+		ctx.ResponseWriter.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	} else {
+		ctx.ResponseWriter.Header().Set("Content-Type", "application/json; charset="+charset[0])
+	}
+	ctx.ResponseWriter.WriteHeader(status)
+	_, err = ctx.ResponseWriter.Write(dataBytes)
+	return err
 }
