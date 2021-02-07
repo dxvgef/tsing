@@ -19,6 +19,7 @@ type Config struct {
 	ExposeHeaders      string
 	AllowMethods       string
 	AllowHeaders       string
+	Charset            string       // 响应的字符集，默认是UTF-8
 	MaxMultipartMemory int64        // 允许的请求Body大小(默认1 << 20 = 1MB)
 	EventHandler       EventHandler // 事件-处理器函数，如果不赋值，则不启用事件
 	UseRawPath         bool         // 使用url.RawPath查找参数
@@ -55,6 +56,9 @@ func New(config Config) *Engine {
 		}
 		if config.ExposeHeaders == "" {
 			config.ExposeHeaders = "*"
+		}
+		if config.Charset == "" {
+			config.Charset = "utf-8"
 		}
 	}
 	// 初始化一个引擎

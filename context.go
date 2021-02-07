@@ -247,7 +247,7 @@ func (ctx *Context) Redirect(code int, url string) error {
 // 输出字符串
 func (ctx *Context) String(status int, data string, charset ...string) (err error) {
 	if len(charset) == 0 {
-		ctx.ResponseWriter.Header().Set("Content-Type", "text/plain; charset=UTF-8")
+		ctx.ResponseWriter.Header().Set("Content-Type", "text/plain; charset="+ctx.engine.Config.Charset)
 	} else {
 		ctx.ResponseWriter.Header().Set("Content-Type", "text/plain; charset="+charset[0])
 	}
@@ -263,7 +263,7 @@ func (ctx *Context) JSON(status int, data interface{}, charset ...string) error 
 		return err
 	}
 	if len(charset) == 0 {
-		ctx.ResponseWriter.Header().Set("Content-Type", "application/json; charset=UTF-8")
+		ctx.ResponseWriter.Header().Set("Content-Type", "application/json; charset="+ctx.engine.Config.Charset)
 	} else {
 		ctx.ResponseWriter.Header().Set("Content-Type", "application/json; charset="+charset[0])
 	}
