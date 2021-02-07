@@ -450,3 +450,28 @@ func TestJSON(t *testing.T) {
 	}
 	app.ServeHTTP(httptest.NewRecorder(), r)
 }
+
+// 测试输出状态码
+func TestStatus(t *testing.T) {
+	app := New(Config{
+		RootPath:           getRootPath(),
+		UnescapePathValues: true,
+		MaxMultipartMemory: 2 << 20,
+		EventHandler:       eventHandler,
+		EventTrace:         true,
+		EventSource:        true,
+		Recover:            true,
+		EventShortPath:     true,
+	})
+	app.GET("/", func(ctx *Context) error {
+		return ctx.Status(204)
+	})
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	r, err := http.NewRequestWithContext(ctx, "GET", "/", nil)
+	if err != nil {
+		t.Error(err.Error())
+		return
+	}
+	app.ServeHTTP(httptest.NewRecorder(), r)
+}

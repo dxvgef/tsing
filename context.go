@@ -234,25 +234,26 @@ func (ctx *Context) ParseJSON(obj interface{}) error {
 }
 
 // 向客户端发送重定向响应
-func (ctx *Context) Redirect(code int, url string) {
+func (ctx *Context) Redirect(code int, url string) error {
 	if code < 300 || code > 308 {
 		ctx.engine.panicEvent(ctx.ResponseWriter, ctx.Request, "The status code can only be 30x")
-		return
+		return nil
 	}
 	ctx.ResponseWriter.Header().Set("Location", url)
 	ctx.ResponseWriter.WriteHeader(code)
+	return nil
 }
 
 // 输出字符串
-func (ctx *Context) String(status int, data string, charset ...string) error {
+func (ctx *Context) String(status int, data string, charset ...string) (err error) {
 	if len(charset) == 0 {
 		ctx.ResponseWriter.Header().Set("Content-Type", "text/plain; charset=UTF-8")
 	} else {
 		ctx.ResponseWriter.Header().Set("Content-Type", "text/plain; charset="+charset[0])
 	}
 	ctx.ResponseWriter.WriteHeader(status)
-	_, err := ctx.ResponseWriter.Write(strToBytes(data))
-	return err
+	_, err = ctx.ResponseWriter.Write(strToBytes(data))
+	return
 }
 
 // 输出JSON
@@ -269,4 +270,13 @@ func (ctx *Context) JSON(status int, data interface{}, charset ...string) error 
 	ctx.ResponseWriter.WriteHeader(status)
 	_, err = ctx.ResponseWriter.Write(dataBytes)
 	return err
+}
+
+// 输出状态码
+func (ctx *Context) Status(status int) (err error) {
+	ctx.ResponseWriter.WriteHeader(status)
+	if status != http.StatusNoContent {
+		_, err = ctx.ResponseWriter.Write([]byte(http.StatusText(status)))
+	}
+	return
 }
