@@ -18,7 +18,6 @@ Tsing 是汉字【青】以及同音字做为名词时的英文，例如：清�
 * [路由及路由处理器](https://github.com/dxvgef/tsing/wiki/%E8%B7%AF%E7%94%B1%E5%8F%8A%E8%B7%AF%E7%94%B1%E5%A4%84%E7%90%86%E5%99%A8)
 * [会话Context](https://github.com/dxvgef/tsing/wiki/%E4%BC%9A%E8%AF%9DContext)
 * [参数验证及类型转换](https://github.com/dxvgef/tsing/wiki/%E5%8F%82%E6%95%B0%E9%AA%8C%E8%AF%81%E5%8F%8A%E7%B1%BB%E5%9E%8B%E8%BD%AC%E6%8D%A2)
-* [数据输出](https://github.com/dxvgef/tsing/wiki/%E6%95%B0%E6%8D%AE%E8%BE%93%E5%87%BA)
 * [HTML模板渲染](https://github.com/dxvgef/tsing/wiki/HTML%E6%A8%A1%E6%9D%BF%E6%B8%B2%E6%9F%93)
 * [CORS跨域资源共享控制](https://github.com/dxvgef/tsing/wiki/CORS%E8%B7%A8%E5%9F%9F%E8%B5%84%E6%BA%90%E5%85%B1%E4%BA%AB%E6%8E%A7%E5%88%B6)
 * [Session](https://github.com/dxvgef/tsing/wiki/Session)
