@@ -1,0 +1,193 @@
+# 运行配置
+run:
+  # 要使用的CPU核心数
+  concurrency: 4
+  # 分析超时，30m, 5m, 默认1m
+  timeout: 1m
+  # 退出代码, default is 1
+  issues-exit-code: 1
+  # 是否包含单元测试文件, default is true
+  tests: true
+  # 跳过目录
+  # skip-dirs:
+  #     - vendor
+  # 跳过默认目录：vendor$, third_party$, testdata$, examples$, Godeps$, builtin$
+  skip-dirs-use-default: true
+  # 包管理模式，go modules使用readonly
+  modules-download-mode: readonly
+
+# 输出配置
+output:
+  # 输出格式：colored-line-number|line-number|json|tab|checkstyle|code-climate, default is "colored-line-number"
+  format: colored-line-number
+  # 打印有问题的代码行号, default is true
+  print-issued-lines: true
+  # 在问题文本的未尾打印检查器名称, default is true
+  print-linter-name: true
+  # 使问题的输出逐行唯一, default is true
+  uniq-by-line: true
+
+# 质量检查配置
+linters-settings:
+  # 错误检查
+  errcheck:
+    # 检查类型错误
+    check-type-assertions: false
+
+    # 检查空标识符
+    check-blank: true
+
+    # 忽略文件
+    ignore: fmt:.*,io/ioutil:^Read.*
+
+  govet:
+    enable-all: true
+    printing-suggested-fixes: true
+
+  # 检查函数的复杂程度
+  gocyclo:
+    # 最小复杂性
+    min-complexity: 10
+  depguard:
+    list-type: blacklist
+    include-go-root: false
+    packages:
+      - github.com/davecgh/go-spew/spew
+  lll:
+    line-length: 120
+    tab-width: 1
+  unused:
+    check-exported: true
+  unparam:
+    check-exported: false
+  gocritic:
+    enabled-checks:
+    disabled-checks:
+    enabled-tags:
+      - performance
+    settings: # settings passed to gocritic
+      captLocal: # must be valid enabled check name
+        paramsOnly: true
+      rangeValCopy:
+        sizeThreshold: 32
+
+linters:
+  enable:
+    - bodyclose
+    - deadcode
+    - depguard
+    - dogsled
+    - dupl
+    - errcheck
+    - exportloopref
+    - exhaustive
+    - gochecknoinits
+    - goconst
+    - gocritic
+    - gofmt
+    - goimports
+    - golint
+    - goprintffuncname
+    - gosec
+    - gosimple
+    - govet
+    - ineffassign
+    - lll
+    - misspell
+    - noctx
+    - nolintlint
+    - rowserrcheck
+    - staticcheck
+    - structcheck
+    - stylecheck
+    - typecheck
+    - unconvert
+    - unparam
+    - unused
+    - varcheck
+    - whitespace
+  enable-all: false
+  disable:
+    - scopelint
+    - funlen
+    - gocyclo
+    - nakedret
+    - gomnd
+  disable-all: false
+  presets:
+    - bugs
+  fast: false
+
+issues:
+  exclude: /bin
+  exclude-rules:
+    # 设置某个目录的排除规则
+    - path: _test\.go
+      linters:
+        - gomnd
+        - gocyclo
+        - errcheck
+        - dupl
+        - gosec
+
+    - path: internal/hmac/
+      text: "weak cryptographic primitive"
+      linters:
+        - gosec
+
+    # 排除staticcheck消息
+    - linters:
+        - staticcheck
+      text: "SA9003:"
+
+    # 排除golint的导出未注释的消息
+    - linters:
+        - golint
+      text: "comment on exported"
+    # 排除golint的导出未注释的消息
+    - linters:
+        - golint
+      text: "should have comment"
+
+    # 排除stylecheck的导出未注释的消息
+    - linters:
+        - stylecheck
+      text: "ST1020:"
+    # 排除stylecheck的导出未注释的消息
+    - linters:
+        - stylecheck
+      text: "ST1000:"
+    # 排除stylecheck的导出未注释的消息
+    - linters:
+        - stylecheck
+      text: "ST1021:"
+    # 排除stylecheck的导出未注释的消息
+    - linters:
+        - stylecheck
+      text: "ST1022:"
+
+    # 排除lll的行太长的消息
+    - linters:
+        - lll
+      text: "line is"
+
+    - linters:
+        - gocritic
+      text: "unnecessaryDefer:"
+
+    # Exclude lll issues for long lines with go:generate
+  #    - linters:
+  #        - lll
+  #      source: "^//go:generate "
+
+  # Independently from option `exclude` we use default exclude patterns,
+  # it can be disabled by this option. To list all
+  # excluded by default patterns execute `golangci-lint run --help`.
+  # Default value for this option is true.
+  exclude-use-default: false
+
+  # Maximum issues count per one linter. Set to 0 to disable. Default is 50.
+  max-issues-per-linter: 0
+
+  # Maximum count of issues with the same text. Set to 0 to disable. Default is 3.
+  max-same-issues: 0
