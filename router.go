@@ -190,9 +190,9 @@ func (router *Router) Dir(urlPath, absPath string) RouterInterface {
 		return nil
 	}
 
-	finalUrlPath := path.Join(urlPath, "/*filepath")
-	router.GET(finalUrlPath, handler)
-	router.HEAD(finalUrlPath, handler)
+	finalURLPath := path.Join(urlPath, "/*filepath")
+	router.GET(finalURLPath, handler)
+	router.HEAD(finalURLPath, handler)
 
 	return router.getRouter()
 }

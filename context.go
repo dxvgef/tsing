@@ -224,7 +224,7 @@ func (ctx *Context) FormParam(key string) (string, bool) {
 	return ctx.Request.Form[key][0], true
 }
 
-// nolint 将json格式的body数据反序列化到传入的对象
+// 将json格式的body数据反序列化到传入的对象
 func (ctx *Context) ParseJSON(obj interface{}) error {
 	body, err := ioutil.ReadAll(ctx.Request.Body)
 	if err != nil {

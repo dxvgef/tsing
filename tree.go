@@ -442,7 +442,7 @@ walk: // Outer loop for walking the tree
 
 			// handle wildcard child
 			n = n.children[0]
-			// nolint(exhaustive)
+			// nolint:exhaustive
 			switch n.nType {
 			case param:
 				// find param end (either '/' or path end)

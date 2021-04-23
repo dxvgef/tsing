@@ -36,14 +36,14 @@ type Config struct {
 // 引擎
 type Engine struct {
 	*Router                 // 路由器
-	Config      Config      // 配置
+	Config      *Config     // 配置
 	contextPool sync.Pool   // context池
 	eventPool   sync.Pool   // event池
 	trees       methodTrees // 路由树
 }
 
 // 创建一个新引擎
-func New(config Config) *Engine {
+func New(config *Config) *Engine {
 	if config.MaxMultipartMemory == 0 {
 		config.MaxMultipartMemory = MaxMultipartMemory
 	}

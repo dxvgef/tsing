@@ -27,7 +27,7 @@ type _Source struct {
 }
 
 // 事件处理器
-type EventHandler func(Event)
+type EventHandler func(*Event)
 
 func (e *Event) reset(resp http.ResponseWriter, req *http.Request) {
 	e.Message = nil
@@ -66,7 +66,7 @@ func (engine *Engine) handlerErrorEvent(resp http.ResponseWriter, req *http.Requ
 		}
 	}
 
-	engine.Config.EventHandler(event)
+	engine.Config.EventHandler(&event)
 	// nolint:staticcheck
 	engine.eventPool.Put(event)
 }
@@ -121,7 +121,7 @@ func (engine *Engine) contextSourceHandler(resp http.ResponseWriter, req *http.R
 		}
 	}
 
-	engine.Config.EventHandler(event)
+	engine.Config.EventHandler(&event)
 
 	// nolint:staticcheck
 	engine.eventPool.Put(event)
@@ -185,7 +185,7 @@ func (engine *Engine) panicEvent(resp http.ResponseWriter, req *http.Request, er
 		}
 	}
 
-	engine.Config.EventHandler(event)
+	engine.Config.EventHandler(&event)
 
 	// nolint:staticcheck
 	engine.eventPool.Put(event)
@@ -204,7 +204,7 @@ func (engine *Engine) notFoundEvent(resp http.ResponseWriter, req *http.Request)
 	event.Status = http.StatusNotFound
 	event.Message = errors.New(http.StatusText(http.StatusNotFound))
 
-	engine.Config.EventHandler(event)
+	engine.Config.EventHandler(&event)
 
 	// nolint:staticcheck
 	engine.eventPool.Put(event)
@@ -223,7 +223,7 @@ func (engine *Engine) methodNotAllowedEvent(resp http.ResponseWriter, req *http.
 	event.Status = http.StatusMethodNotAllowed
 	event.Message = errors.New(http.StatusText(http.StatusMethodNotAllowed))
 
-	engine.Config.EventHandler(event)
+	engine.Config.EventHandler(&event)
 
 	// nolint:staticcheck
 	engine.eventPool.Put(event)

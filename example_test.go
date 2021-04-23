@@ -15,7 +15,7 @@ import (
 )
 
 // 事件处理器
-func eventHandler(e Event) {
+func eventHandler(e *Event) {
 	log.SetFlags(log.Lshortfile)
 	log.Println(e.Status)
 	log.Println(e.Message)
@@ -27,7 +27,7 @@ func eventHandler(e Event) {
 
 // 测试回应
 func TestEcho(t *testing.T) {
-	app := New(Config{
+	app := New(&Config{
 		UnescapePathValues: true,
 		MaxMultipartMemory: 20 << 20,
 	})
@@ -49,7 +49,7 @@ func TestEcho(t *testing.T) {
 
 // 测试 PathParams
 func TestURLParams(t *testing.T) {
-	app := New(Config{
+	app := New(&Config{
 		UnescapePathValues: true,
 		MaxMultipartMemory: 20 << 20,
 	})
@@ -70,7 +70,7 @@ func TestURLParams(t *testing.T) {
 
 // 测试Context传值
 func TestContext(t *testing.T) {
-	app := New(Config{
+	app := New(&Config{
 		UnescapePathValues: true,
 		MaxMultipartMemory: 20 << 20,
 	})
@@ -96,7 +96,7 @@ func TestContext(t *testing.T) {
 
 // 测试路由组
 func TestGroup(t *testing.T) {
-	app := New(Config{
+	app := New(&Config{
 		UnescapePathValues: true,
 		MaxMultipartMemory: 20 << 20,
 	})
@@ -125,7 +125,7 @@ func TestGroup(t *testing.T) {
 
 // 测试中止
 func TestAbort(t *testing.T) {
-	app := New(Config{
+	app := New(&Config{
 		UnescapePathValues: true,
 		MaxMultipartMemory: 20 << 20,
 	})
@@ -151,7 +151,7 @@ func TestAbort(t *testing.T) {
 
 // 测试Append
 func TestAppend(t *testing.T) {
-	app := New(Config{
+	app := New(&Config{
 		UnescapePathValues: true,
 		MaxMultipartMemory: 20 << 20,
 	})
@@ -178,7 +178,7 @@ func TestAppend(t *testing.T) {
 
 // 测试QueryParams
 func TestQueryParams(t *testing.T) {
-	app := New(Config{
+	app := New(&Config{
 		UnescapePathValues: true,
 		MaxMultipartMemory: 20 << 20,
 	})
@@ -198,7 +198,7 @@ func TestQueryParams(t *testing.T) {
 
 // 测试PostParams
 func TestPostParams(t *testing.T) {
-	app := New(Config{
+	app := New(&Config{
 		UnescapePathValues: true,
 		MaxMultipartMemory: 20 << 20,
 	})
@@ -223,7 +223,7 @@ func TestPostParams(t *testing.T) {
 
 // 测试FormParams
 func TestFormParams(t *testing.T) {
-	app := New(Config{
+	app := New(&Config{
 		UnescapePathValues: true,
 		MaxMultipartMemory: 20 << 20,
 	})
@@ -252,7 +252,7 @@ func TestPostUnmarshalJSON(t *testing.T) {
 		ID   int64  `json:"id"`
 		Name string `json:"name"`
 	}
-	app := New(Config{
+	app := New(&Config{
 		UnescapePathValues: true,
 		MaxMultipartMemory: 20 << 20,
 	})
@@ -283,7 +283,7 @@ func TestPostUnmarshalJSON(t *testing.T) {
 
 // 测试404事件
 func TestNotFoundEvent(t *testing.T) {
-	app := New(Config{
+	app := New(&Config{
 		RootPath:           getRootPath(),
 		UnescapePathValues: true,
 		EventHandler:       eventHandler,
@@ -300,7 +300,7 @@ func TestNotFoundEvent(t *testing.T) {
 
 // 测试405事件
 func TestMethodNotAllowedEvent(t *testing.T) {
-	app := New(Config{
+	app := New(&Config{
 		RootPath:           getRootPath(),
 		UnescapePathValues: true,
 		EventHandler:       eventHandler,
@@ -320,7 +320,7 @@ func TestMethodNotAllowedEvent(t *testing.T) {
 
 // 测试处理器返回的error事件
 func TestHandlerErrorEvent(t *testing.T) {
-	app := New(Config{
+	app := New(&Config{
 		RootPath:           getRootPath(),
 		UnescapePathValues: true,
 		MaxMultipartMemory: 2 << 20,
@@ -348,7 +348,7 @@ func TestHandlerErrorEvent(t *testing.T) {
 
 // 测试处理器中使用Source()包裹error并返回的事件
 func TestContextSourceEvent(t *testing.T) {
-	app := New(Config{
+	app := New(&Config{
 		RootPath:           getRootPath(),
 		UnescapePathValues: true,
 		MaxMultipartMemory: 2 << 20,
@@ -376,7 +376,7 @@ func TestContextSourceEvent(t *testing.T) {
 
 // 测试panic事件
 func TestPanicEvent(t *testing.T) {
-	app := New(Config{
+	app := New(&Config{
 		RootPath:           getRootPath(),
 		UnescapePathValues: true,
 		MaxMultipartMemory: 2 << 20,
@@ -401,7 +401,7 @@ func TestPanicEvent(t *testing.T) {
 
 // 测试输出string
 func TestString(t *testing.T) {
-	app := New(Config{
+	app := New(&Config{
 		RootPath:           getRootPath(),
 		UnescapePathValues: true,
 		MaxMultipartMemory: 2 << 20,
@@ -426,7 +426,7 @@ func TestString(t *testing.T) {
 
 // 测试输出JSON
 func TestJSON(t *testing.T) {
-	app := New(Config{
+	app := New(&Config{
 		RootPath:           getRootPath(),
 		UnescapePathValues: true,
 		MaxMultipartMemory: 2 << 20,
@@ -453,7 +453,7 @@ func TestJSON(t *testing.T) {
 
 // 测试输出状态码
 func TestStatus(t *testing.T) {
-	app := New(Config{
+	app := New(&Config{
 		RootPath:           getRootPath(),
 		UnescapePathValues: true,
 		MaxMultipartMemory: 2 << 20,
