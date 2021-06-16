@@ -54,8 +54,8 @@ func TestURLParams(t *testing.T) {
 		MaxMultipartMemory: 20 << 20,
 	})
 	app.GET("/:path/:file", func(ctx *Context) error {
-		t.Log(ctx.PathParams.Value("path"))
-		t.Log(ctx.PathParams.Value("file"))
+		t.Log(ctx.Path("path"))
+		t.Log(ctx.Path("file"))
 		return nil
 	})
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

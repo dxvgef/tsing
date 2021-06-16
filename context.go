@@ -15,7 +15,7 @@ const MaxMultipartMemory = 1 << 20
 
 // 上下文
 type Context struct {
-	PathParams     PathParams
+	pathParams     PathParams
 	handlers       HandlersChain
 	ResponseWriter http.ResponseWriter
 	fullPath       string
@@ -31,7 +31,7 @@ var emptyValues url.Values
 func (ctx *Context) reset(req *http.Request, resp http.ResponseWriter) {
 	ctx.Request = req
 	ctx.ResponseWriter = resp
-	ctx.PathParams = ctx.PathParams[0:0]
+	ctx.pathParams = ctx.pathParams[0:0]
 	ctx.handlers = nil
 	ctx.index = -1
 	ctx.fullPath = ""
@@ -137,6 +137,16 @@ func (ctx *Context) RemoteIP() string {
 		}
 	}
 	return ra
+}
+
+// 获取所有路由参数值
+func (ctx *Context) PathParams() PathParams {
+	return ctx.pathParams
+}
+
+// 获取某个路由参数值的string类型
+func (ctx *Context) Path(key string) string {
+	return ctx.pathParams.Value(key)
 }
 
 // 获取所有GET参数值
