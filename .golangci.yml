@@ -40,6 +40,8 @@ linters-settings:
     # 忽略文件
     ignore: fmt:.*,io/ioutil:^Read.*
 
+  maligned:
+    suggest-new: true
   govet:
     enable-all: true
     printing-suggested-fixes: true
@@ -85,14 +87,15 @@ linters:
     - goconst
     - gocritic
     - gofmt
+    - govet
     - goimports
     - golint
     - goprintffuncname
     - gosec
     - gosimple
-    - govet
     - ineffassign
     - lll
+    - maligned
     - misspell
     - noctx
     - nolintlint
@@ -138,7 +141,15 @@ issues:
     # 排除staticcheck消息
     - linters:
         - staticcheck
+      text: "SA6002:"
+    - linters:
+        - staticcheck
       text: "SA9003:"
+
+    # 排除gosec消息
+    - linters:
+        - gosec
+      text: "G103:"
 
     # 排除golint的导出未注释的消息
     - linters:
@@ -148,7 +159,9 @@ issues:
     - linters:
         - golint
       text: "should have comment"
-
+    - linters:
+        - govet
+      text: "fieldalignment:"
     # 排除stylecheck的导出未注释的消息
     - linters:
         - stylecheck
