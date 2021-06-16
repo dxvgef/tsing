@@ -141,11 +141,11 @@ func (engine *Engine) handleRequest(ctx *Context) {
 			continue
 		}
 		root := engine.trees[k].root
-		value := root.getValue(rPath, ctx.PathParams, unescape)
+		value := root.getValue(rPath, ctx.pathParams, unescape)
 		if value.handlers != nil {
 			// 为ctx属性赋值
 			ctx.handlers = value.handlers
-			ctx.PathParams = value.params
+			ctx.pathParams = value.params
 			ctx.fullPath = value.fullPath
 			// 自动处理OPTIONS请求
 			if engine.Config.CORS {

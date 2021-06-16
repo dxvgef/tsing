@@ -179,7 +179,7 @@ func (router *Router) Dir(urlPath, absPath string) RouterInterface {
 	}
 
 	handler := func(ctx *Context) error {
-		relPath := ctx.PathParams.Value("filepath")
+		relPath := ctx.pathParams.Value("filepath")
 		finalAbsPath := path.Join(absPath, relPath)
 		_, err := os.Stat(finalAbsPath)
 		if err != nil {
