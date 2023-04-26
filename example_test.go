@@ -1,476 +1,239 @@
 package tsing
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"errors"
 	"log"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"strings"
 	"testing"
 	"time"
 )
 
-// 事件处理器
-func eventHandler(e *Event) {
-	log.SetFlags(log.Lshortfile)
-	log.Println(e.Status)
-	log.Println(e.Message)
-	log.Println(e.Source)
-	for k := range e.Trace {
-		log.Println("  ", e.Trace[k])
+// 错误回调处理器
+func errorHandler(ctx *Context) {
+	log.Println("错误:", ctx.Status, ctx.Error)
+	// 自动响应OPTIONS请求，用于解决CORS问题
+	if ctx.Status == http.StatusMethodNotAllowed && ctx.Request.Method == "OPTIONS" {
+		ctx.ResponseWriter.Header().Set("Access-Control-Allow-Origin", ctx.Request.Header.Get("Origin"))
+		ctx.ResponseWriter.Header().Set("Vary", "Origin")
+		ctx.ResponseWriter.Header().Set("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS")
+		ctx.ResponseWriter.Header().Set("Access-Control-Allow-Headers", "*")
+		ctx.ResponseWriter.Header().Set("Access-Control-Expose-Headers", "*")
+		ctx.ResponseWriter.Header().Set("Access-Control-Allow-Credentials", "true")
+		ctx.ResponseWriter.Header().Set("Access-Control-Max-Age", "2592000")
+		ctx.ResponseWriter.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	// 常规处理错误
+	ctx.ResponseWriter.WriteHeader(ctx.Status)
+	if ctx.Error != nil {
+		_, _ = ctx.ResponseWriter.Write([]byte(ctx.Error.Error()))
 	}
 }
 
 // 测试回应
 func TestEcho(t *testing.T) {
-	app := New(&Config{
-		UnescapePathValues: true,
-		MaxMultipartMemory: 20 << 20,
-	})
+	app := New()
 	app.GET("/", func(ctx *Context) error {
-		ctx.ResponseWriter.WriteHeader(200)
-		_, _ = ctx.ResponseWriter.Write([]byte("Hello !"))
-		t.Log("Hello !")
+		t.Log("Hello Tsing")
 		return nil
 	})
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	r, err := http.NewRequestWithContext(ctx, "GET", "/", nil)
 	if err != nil {
-		t.Error(err.Error())
+		t.Error(err)
 		return
 	}
 	app.ServeHTTP(httptest.NewRecorder(), r)
 }
 
-// 测试 PathParams
-func TestURLParams(t *testing.T) {
-	app := New(&Config{
-		UnescapePathValues: true,
-		MaxMultipartMemory: 20 << 20,
+// 测试处理器执行顺序
+func TestHandlers(t *testing.T) {
+	app := New(Config{
+		AfterHandlerFirstInFirstOut: true, // 后置处理器先注册先执行，否则先注册后执行
 	})
-	app.GET("/:path/:file", func(ctx *Context) error {
-		t.Log(ctx.Path("path"))
-		t.Log(ctx.Path("file"))
+	app.Before(func(ctx *Context) error {
+		t.Log("1 执行了全局前置处理器")
 		return nil
 	})
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	app.After(func(ctx *Context) error {
+		t.Log("6 执行了全局后置处理器")
+		return nil
+	})
+	group := app.Group("/group", func(ctx *Context) error {
+		t.Log("2 执行了路由组/group 处理器")
+		return nil
+	})
+	group.Before(func(ctx *Context) error {
+		t.Log("3 执行了路由组/group 前置处理器")
+		return nil
+	})
+	group.After(func(ctx *Context) error {
+		t.Log("5 执行了路由组/group 后置处理器")
+		return nil
+	})
+	group.GET("/object", func(ctx *Context) error {
+		t.Log("4 执行了路由/group/object 处理器")
+		return nil
+	})
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	r, err := http.NewRequestWithContext(ctx, "GET", "/haha/hehe||123", nil)
+	r, err := http.NewRequestWithContext(ctx, "GET", "/group/object", nil)
 	if err != nil {
-		t.Error(err.Error())
+		t.Error(err)
+		return
+	}
+	app.ServeHTTP(httptest.NewRecorder(), r)
+}
+
+// 测试 PathValue
+func TestPathValue(t *testing.T) {
+	app := New()
+	app.GET("/:path/:file", func(ctx *Context) error {
+		t.Log("path=", ctx.PathValue("path"))
+		t.Log("file=", ctx.PathValue("file"))
+		return nil
+	})
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	r, err := http.NewRequestWithContext(ctx, "GET", "/haha/123", nil)
+	if err != nil {
+		t.Error(err)
 		return
 	}
 	app.ServeHTTP(httptest.NewRecorder(), r)
 }
 
 // 测试Context传值
-func TestContext(t *testing.T) {
-	app := New(&Config{
-		UnescapePathValues: true,
-		MaxMultipartMemory: 20 << 20,
-	})
-	app.GET("/context", func(ctx *Context) error {
+func TestContextValue(t *testing.T) {
+	app := New()
+	app.GET("/", func(ctx *Context) error {
 		// 在ctx中写入参数
-		ctx.SetValue("test", "hehe")
-		t.Log(1, ctx.Request.URL.Path, "写值")
+		ctx.SetValue("hello", "tsing")
 		return nil
 	}, func(ctx *Context) error {
-		// 从ctx中读取参数
-		t.Log(2, ctx.Request.URL.Path, "取值：", ctx.GetValue("test"))
+		t.Log("hello=", ctx.GetValue("hello"))
 		return nil
 	})
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	r, err := http.NewRequestWithContext(ctx, "GET", "/context", nil)
+	r, err := http.NewRequestWithContext(ctx, "GET", "/", nil)
 	if err != nil {
-		t.Error(err.Error())
+		t.Error(err)
 		return
 	}
 	app.ServeHTTP(httptest.NewRecorder(), r)
 }
 
-// 测试路由组
-func TestGroup(t *testing.T) {
-	app := New(&Config{
-		UnescapePathValues: true,
-		MaxMultipartMemory: 20 << 20,
-	})
-	group := app.Group("/group", func(ctx *Context) error {
-		ctx.SetValue("test", "haha")
-		t.Log(1, ctx.Request.URL.Path, "写值")
-		return nil
-	})
-	group.GET("/object", func(ctx *Context) error {
-		ctx.ResponseWriter.WriteHeader(http.StatusNoContent)
-		t.Log(2, ctx.Request.URL.Path, "取值：", ctx.GetValue("test"))
-		return nil
-	}, func(ctx *Context) error {
-		t.Log(3, ctx.Request.URL.Path, "取值：", ctx.GetValue("test"))
-		return nil
-	})
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	r, err := http.NewRequestWithContext(ctx, "GET", "/group/object", nil)
-	if err != nil {
-		t.Error(err.Error())
-		return
-	}
-	app.ServeHTTP(httptest.NewRecorder(), r)
-}
-
-// 测试中止
-func TestAbort(t *testing.T) {
-	app := New(&Config{
-		UnescapePathValues: true,
-		MaxMultipartMemory: 20 << 20,
-	})
+// 测试中止处理器链
+func TestBreak(t *testing.T) {
+	app := New()
 	group := app.Group("/group")
 	group.GET("/object", func(ctx *Context) error {
-		t.Log(1, ctx.Request.URL.Path)
-		ctx.Abort()
-		t.Log(2, ctx.IsAborted())
+		t.Log("ok")
+		ctx.Break()
 		return nil
 	}, func(ctx *Context) error {
-		t.Log(3, ctx.Request.URL.Path)
+		t.Error("中止失败")
 		return nil
 	})
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	r, err := http.NewRequestWithContext(ctx, "GET", "/group/object", nil)
 	if err != nil {
-		t.Error(err.Error())
+		t.Error(err)
 		return
 	}
 	app.ServeHTTP(httptest.NewRecorder(), r)
 }
 
-// 测试Append
-func TestAppend(t *testing.T) {
-	app := New(&Config{
-		UnescapePathValues: true,
-		MaxMultipartMemory: 20 << 20,
-	})
-	app.Append(func(ctx *Context) error {
-		t.Log(1, "append handler 1")
-		return nil
-	}, func(ctx *Context) error {
-		t.Log(2, "append handler 2")
-		return nil
-	})
-	app.GET("/test", func(ctx *Context) error {
-		t.Log(3, ctx.Request.URL.Path)
-		return nil
-	})
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	r, err := http.NewRequestWithContext(ctx, "GET", "/test", nil)
-	if err != nil {
-		t.Error(err.Error())
-		return
-	}
-	app.ServeHTTP(httptest.NewRecorder(), r)
-}
-
-// 测试QueryParams
+// 测试QueryValue
 func TestQueryParams(t *testing.T) {
-	app := New(&Config{
-		UnescapePathValues: true,
-		MaxMultipartMemory: 20 << 20,
-	})
-	app.GET("/object", func(ctx *Context) error {
-		t.Log(ctx.QueryParams())
+	app := New()
+	app.GET("/", func(ctx *Context) error {
+		t.Log("id=", ctx.QueryValue("id"))
 		return nil
 	})
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	r, err := http.NewRequestWithContext(ctx, "GET", "/object?a=1&b=2", nil)
+	r, err := http.NewRequestWithContext(ctx, "GET", "/?id=123", nil)
 	if err != nil {
-		t.Error(err.Error())
+		t.Error(err)
 		return
 	}
 	app.ServeHTTP(httptest.NewRecorder(), r)
 }
 
-// 测试PostParams
-func TestPostParams(t *testing.T) {
-	app := New(&Config{
-		UnescapePathValues: true,
-		MaxMultipartMemory: 20 << 20,
-	})
-	app.POST("/object", func(ctx *Context) error {
-		t.Log(ctx.PostParams())
-		return nil
-	})
-
-	v := url.Values{}
-	v.Add("a", "1")
-	v.Add("b", "2")
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	r, err := http.NewRequestWithContext(ctx, "POST", "/object", strings.NewReader(v.Encode()))
-	if err != nil {
-		t.Error(err.Error())
-		return
-	}
-	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	app.ServeHTTP(httptest.NewRecorder(), r)
-}
-
-// 测试FormParams
-func TestFormParams(t *testing.T) {
-	app := New(&Config{
-		UnescapePathValues: true,
-		MaxMultipartMemory: 20 << 20,
-	})
-	app.POST("/object", func(ctx *Context) error {
-		t.Log(ctx.FormParams())
-		return nil
-	})
-
-	v := url.Values{}
-	v.Add("c", "3")
-	v.Add("d", "4")
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	r, err := http.NewRequestWithContext(ctx, "POST", "/object?a=1&b=2", strings.NewReader(v.Encode()))
-	if err != nil {
-		t.Error(err.Error())
-		return
-	}
-	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	app.ServeHTTP(httptest.NewRecorder(), r)
-}
-
-// 测试UnmarshalJSON
-func TestPostUnmarshalJSON(t *testing.T) {
-	type Obj struct {
-		ID   int64  `json:"id"`
-		Name string `json:"name"`
-	}
-	app := New(&Config{
-		UnescapePathValues: true,
-		MaxMultipartMemory: 20 << 20,
-	})
+// 测试FormValue
+func TestFormValue(t *testing.T) {
+	app := New()
 	app.POST("/", func(ctx *Context) error {
-		var obj Obj
-		t.Log(ctx.ParseJSON(&obj))
+		t.Log("test=", ctx.FormValue("test"))
 		return nil
 	})
 
-	var o Obj
-	o.ID = 123
-	o.Name = "dxvgef"
-	ob, err := json.Marshal(&o)
-	if err != nil {
-		t.Error(err.Error())
-		return
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	r, err := http.NewRequestWithContext(ctx, "POST", "/", bytes.NewBuffer(ob))
+	r, err := http.NewRequestWithContext(ctx, "POST", "/", strings.NewReader("test=ok"))
 	if err != nil {
-		t.Error(err.Error())
+		t.Error(err)
 		return
 	}
-	r.Header.Set("Content-Type", "application/json")
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	app.ServeHTTP(httptest.NewRecorder(), r)
 }
 
-// 测试404事件
-func TestNotFoundEvent(t *testing.T) {
-	app := New(&Config{
-		RootPath:           getRootPath(),
-		UnescapePathValues: true,
-		EventHandler:       eventHandler,
+// 测试404错误
+func TestNotFoundError(t *testing.T) {
+	app := New(Config{
+		ErrorHandler: errorHandler,
 	})
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	r, err := http.NewRequestWithContext(ctx, "GET", "/404", nil)
 	if err != nil {
-		t.Error(err.Error())
+		t.Error(err)
 		return
 	}
 	app.ServeHTTP(httptest.NewRecorder(), r)
 }
 
 // 测试405事件
-func TestMethodNotAllowedEvent(t *testing.T) {
-	app := New(&Config{
-		RootPath:           getRootPath(),
-		UnescapePathValues: true,
-		EventHandler:       eventHandler,
+func TestMethodNotAllowedError(t *testing.T) {
+	app := New(Config{
+		HandleMethodNotAllowed: true,
+		ErrorHandler:           errorHandler,
 	})
 	app.POST("/", func(ctx *Context) error {
 		return nil
 	})
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	r, err := http.NewRequestWithContext(ctx, "GET", "/", nil)
 	if err != nil {
-		t.Error(err.Error())
-		return
-	}
-	app.ServeHTTP(httptest.NewRecorder(), r)
-}
-
-// 测试处理器返回的error事件
-func TestHandlerErrorEvent(t *testing.T) {
-	app := New(&Config{
-		RootPath:           getRootPath(),
-		UnescapePathValues: true,
-		MaxMultipartMemory: 2 << 20,
-		EventHandler:       eventHandler,
-		EventTrace:         false,
-		EventHandlerError:  true,
-		EventSource:        true,
-		EventShortPath:     true,
-	})
-	app.GET("/", func(ctx *Context) error {
-		return errors.New("这是处理器返回的错误")
-	}, func(ctx *Context) error {
-		t.Error("处理器链的执行逻辑有异常")
-		return nil
-	})
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	r, err := http.NewRequestWithContext(ctx, "GET", "/", nil)
-	if err != nil {
-		t.Error(err.Error())
-		return
-	}
-	app.ServeHTTP(httptest.NewRecorder(), r)
-}
-
-// 测试处理器中使用Source()包裹error并返回的事件
-func TestContextSourceEvent(t *testing.T) {
-	app := New(&Config{
-		RootPath:           getRootPath(),
-		UnescapePathValues: true,
-		MaxMultipartMemory: 2 << 20,
-		EventHandler:       eventHandler,
-		EventTrace:         false,
-		EventHandlerError:  true,
-		EventSource:        true,
-		EventShortPath:     true,
-	})
-	app.GET("/", func(ctx *Context) error {
-		return ctx.Caller(errors.New("这是用ctx.Caller()返回的错误，能精准定位到事件来源"))
-	}, func(ctx *Context) error {
-		t.Error("处理器链的执行逻辑有异常")
-		return nil
-	})
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	r, err := http.NewRequestWithContext(ctx, "GET", "/", nil)
-	if err != nil {
-		t.Error(err.Error())
+		t.Error(err)
 		return
 	}
 	app.ServeHTTP(httptest.NewRecorder(), r)
 }
 
 // 测试panic事件
-func TestPanicEvent(t *testing.T) {
-	app := New(&Config{
-		RootPath:           getRootPath(),
-		UnescapePathValues: true,
-		MaxMultipartMemory: 2 << 20,
-		EventHandler:       eventHandler,
-		EventTrace:         true,
-		EventSource:        true,
-		Recover:            true,
-		EventShortPath:     true,
+func TestPanicError(t *testing.T) {
+	app := New(Config{
+		Recovery:     true,
+		ErrorHandler: errorHandler,
 	})
 	app.GET("/", func(ctx *Context) error {
-		panic("这是panic消息")
+		panic("panic消息")
 	})
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	r, err := http.NewRequestWithContext(ctx, "GET", "/", nil)
 	if err != nil {
-		t.Error(err.Error())
-		return
-	}
-	app.ServeHTTP(httptest.NewRecorder(), r)
-}
-
-// 测试输出string
-func TestString(t *testing.T) {
-	app := New(&Config{
-		RootPath:           getRootPath(),
-		UnescapePathValues: true,
-		MaxMultipartMemory: 2 << 20,
-		EventHandler:       eventHandler,
-		EventTrace:         true,
-		EventSource:        true,
-		Recover:            true,
-		EventShortPath:     true,
-	})
-	app.GET("/", func(ctx *Context) error {
-		return ctx.String(200, "ok")
-	})
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	r, err := http.NewRequestWithContext(ctx, "GET", "/", nil)
-	if err != nil {
-		t.Error(err.Error())
-		return
-	}
-	app.ServeHTTP(httptest.NewRecorder(), r)
-}
-
-// 测试输出JSON
-func TestJSON(t *testing.T) {
-	app := New(&Config{
-		RootPath:           getRootPath(),
-		UnescapePathValues: true,
-		MaxMultipartMemory: 2 << 20,
-		EventHandler:       eventHandler,
-		EventTrace:         true,
-		EventSource:        true,
-		Recover:            true,
-		EventShortPath:     true,
-	})
-	app.GET("/", func(ctx *Context) error {
-		data := make(map[string]interface{})
-		data["test"] = "ok"
-		return ctx.JSON(200, &data)
-	})
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	r, err := http.NewRequestWithContext(ctx, "GET", "/", nil)
-	if err != nil {
-		t.Error(err.Error())
-		return
-	}
-	app.ServeHTTP(httptest.NewRecorder(), r)
-}
-
-// 测试输出状态码
-func TestStatus(t *testing.T) {
-	app := New(&Config{
-		RootPath:           getRootPath(),
-		UnescapePathValues: true,
-		MaxMultipartMemory: 2 << 20,
-		EventHandler:       eventHandler,
-		EventTrace:         true,
-		EventSource:        true,
-		Recover:            true,
-		EventShortPath:     true,
-	})
-	app.GET("/", func(ctx *Context) error {
-		return ctx.Status(204)
-	})
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	r, err := http.NewRequestWithContext(ctx, "GET", "/", nil)
-	if err != nil {
-		t.Error(err.Error())
+		t.Error(err)
 		return
 	}
 	app.ServeHTTP(httptest.NewRecorder(), r)
