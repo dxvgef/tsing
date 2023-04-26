@@ -3,261 +3,295 @@ package tsing
 import (
 	"context"
 	"encoding/json"
-	"io/ioutil"
-	"net"
+	"errors"
+	"io"
+	"mime/multipart"
 	"net/http"
 	"net/url"
-	"strings"
+	"os"
+	"path/filepath"
+	"sync"
 )
 
-// 默认body限制
-const MaxMultipartMemory = 1 << 20
-
-// 上下文
+// Context is the most important part of gin. It allows us to pass variables between middleware,
+// manage the flow, validate the JSON of a request and render a JSON response for example.
 type Context struct {
-	pathParams     PathParams
-	handlers       HandlersChain
-	ResponseWriter http.ResponseWriter
-	fullPath       string
-	engine         *Engine
 	Request        *http.Request
-	index          int8
-	parsed         bool // 是否已解析body
+	ResponseWriter http.ResponseWriter
+	Status         int   // 处理器执行结果的状态码(HTTP)
+	Error          error // 处理器执行错误时的消息
+
+	broke        bool
+	index        int8
+	fullPath     string
+	engine       *Engine
+	params       *Params
+	skippedNodes *[]skippedNode
+
+	// This mutex protects Keys map.
+	mu sync.RWMutex
+
+	// queryCache caches the query result from c.Request.URL.QueryValue().
+	queryCache url.Values
+
+	// formCache caches c.Request.PostForm, which contains the parsed form data from POST, PATCH,
+	// or PUT body parameters.
+	formCache url.Values
 }
 
-var emptyValues url.Values
-
-// 重置Context
-func (ctx *Context) reset(req *http.Request, resp http.ResponseWriter) {
-	ctx.Request = req
-	ctx.ResponseWriter = resp
-	ctx.pathParams = ctx.pathParams[0:0]
-	ctx.handlers = nil
+func (ctx *Context) reset() {
+	ctx.Status = 200
+	ctx.Error = nil
 	ctx.index = -1
+	ctx.broke = false
 	ctx.fullPath = ""
-	ctx.parsed = false
+	ctx.queryCache = nil
+	ctx.formCache = nil
+	*ctx.params = (*ctx.params)[:0]
+	*ctx.skippedNodes = (*ctx.skippedNodes)[:0]
 }
 
-// 解析form数据
-func (ctx *Context) parseForm() error {
-	if ctx.parsed {
-		return nil
-	}
-	if strings.HasPrefix(ctx.Request.Header.Get("Content-Type"), "multipart/form-data") {
-		if err := ctx.Request.ParseMultipartForm(ctx.engine.Config.MaxMultipartMemory); err != nil {
-			return err
-		}
-	} else {
-		if err := ctx.Request.ParseForm(); err != nil {
-			return err
-		}
-	}
-	ctx.parsed = true
-	return nil
+// FullPath returns a matched route full path. For not found routes
+// returns an empty string.
+//
+//	router.GET("/user/:id", func(c *gin.Context) {
+//	    c.FullPath() == "/user/:id" // true
+//	})
+func (ctx *Context) FullPath() string {
+	return ctx.fullPath
 }
 
-// 继续执行下一个处理器
-func (ctx *Context) next() {
-	var err error
-	ctx.index++
-	for ctx.index < int8(len(ctx.handlers)) {
-		// 执行处理器
-		err = ctx.handlers[ctx.index](ctx)
-		if err == nil {
-			ctx.index++
-			continue
-		}
-		// 500事件
-		if ctx.engine.Config.EventHandler == nil || !ctx.engine.Config.EventHandlerError {
-			break
-		}
-		if !ctx.engine.Config.EventSource {
-			ctx.engine.handlerErrorEvent(ctx.ResponseWriter, ctx.Request, nil, err)
-			break
-		}
-		source := getFuncInfo(ctx.handlers[ctx.index])
-		if ctx.engine.Config.EventShortPath {
-			source.File = strings.TrimPrefix(source.File, ctx.engine.Config.RootPath)
-		}
-		ctx.engine.handlerErrorEvent(ctx.ResponseWriter, ctx.Request, source, err)
-		break
-	}
+// Break 停止执行处理器链
+func (ctx *Context) Break() {
+	ctx.broke = true
 }
 
-// 在处理器函数内return一个error时，用Caller可以记录下处理器内的行号详细信息
-func (ctx *Context) Caller(err error) error {
-	if err == nil {
-		return nil
-	}
-	// 使用contextSourceHandler来触发事件
-	ctx.engine.contextSourceHandler(ctx.ResponseWriter, ctx.Request, err)
-	ctx.Abort()
-	// 清空错误，防止引擎再使用handlerErrorEvent()触发一次重复事件
-	return nil
-}
-
-// 中止执行
-func (ctx *Context) Abort() {
-	ctx.index = abortIndex
-}
-
-// 是否已中止
-func (ctx *Context) IsAborted() bool {
-	return ctx.index >= abortIndex
-}
-
-// 在Context中写值
-func (ctx *Context) SetValue(key, value interface{}) {
+// SetValue 在Context中写入键值，可用于在本次会话的处理器链中传递
+func (ctx *Context) SetValue(key, value any) {
 	if key == nil {
 		return
 	}
 	ctx.Request = ctx.Request.WithContext(context.WithValue(ctx.Request.Context(), key, value))
 }
 
-// 从Context中取值
-func (ctx *Context) GetValue(key interface{}) interface{} {
+// GetValue 从Context中读取键值
+func (ctx *Context) GetValue(key any) any {
 	if key == nil {
 		return nil
 	}
 	return ctx.Request.Context().Value(key)
 }
 
-// 获得客户端真实IP
-func (ctx *Context) RemoteIP() string {
-	ra := ctx.Request.RemoteAddr
-	if ip := ctx.Request.Header.Get("X-Forwarded-For"); ip != "" {
-		ra = strings.Split(ip, ", ")[0]
-	} else if ip := ctx.Request.Header.Get("X-Real-IP"); ip != "" {
-		ra = ip
-	} else {
-		var err error
-		ra, _, err = net.SplitHostPort(ra)
-		if err != nil {
-			return ""
+// PathValue 获取路径参数值
+func (ctx *Context) PathValue(key string) string {
+	return ctx.params.ByName(key)
+}
+
+// PathParam 获取路径参数，并判断参数是否存在
+func (ctx *Context) PathParam(key string) (string, bool) {
+	return ctx.params.Get(key)
+}
+
+// AllPathValues 获取所有路径参数值
+func (ctx *Context) AllPathValue() []Param {
+	return *ctx.params
+}
+
+// 初始化查询参数缓存
+func (ctx *Context) initQueryCache() {
+	if ctx.queryCache == nil {
+		if ctx.Request != nil {
+			ctx.queryCache = ctx.Request.URL.Query()
+		} else {
+			ctx.queryCache = url.Values{}
 		}
 	}
-	return ra
 }
 
-// 获取所有路由参数值
-func (ctx *Context) PathParams() PathParams {
-	return ctx.pathParams
-}
-
-// 获取某个路由参数值的string类型
-func (ctx *Context) Path(key string) string {
-	return ctx.pathParams.Value(key)
-}
-
-// 获取所有GET参数值
-func (ctx *Context) QueryParams() url.Values {
-	return ctx.Request.URL.Query()
-}
-
-// 获取某个GET参数值的string类型
-func (ctx *Context) Query(key string) string {
-	if len(ctx.Request.URL.Query()[key]) == 0 {
-		return ""
+// InitFormCache 初始化表单参数缓存
+func (ctx *Context) InitFormCache() error {
+	if ctx.formCache == nil {
+		ctx.formCache = make(url.Values)
+		req := ctx.Request
+		if err := req.ParseMultipartForm(ctx.engine.config.MaxMultipartMemory); err != nil {
+			return err
+		}
+		ctx.formCache = req.PostForm
 	}
-	return ctx.Request.URL.Query()[key][0]
+	return nil
 }
 
-// 获取某个GET参数
+// QueryValue 获取某个GET参数的第一个值
+func (ctx *Context) QueryValue(key string) string {
+	ctx.initQueryCache()
+	return ctx.queryCache.Get(key)
+}
+
+// QueryParam 获取某个GET参数的第一个值，并判断参数是否存在
 func (ctx *Context) QueryParam(key string) (string, bool) {
-	if len(ctx.Request.URL.Query()[key]) == 0 {
+	ctx.initQueryCache()
+	values, ok := ctx.queryCache[key]
+	if !ok {
 		return "", false
 	}
-	return ctx.Request.URL.Query()[key][0], true
+	return values[0], true
 }
 
-// 获取所有POST/PATCH/PUT参数值
-func (ctx *Context) PostParams() url.Values {
-	if err := ctx.parseForm(); err != nil {
-		return emptyValues
-	}
-	return ctx.Request.PostForm
+// QueryValues 获取某个GET参数的所有值
+func (ctx *Context) QueryValues(key string) []string {
+	ctx.initQueryCache()
+	return ctx.queryCache[key]
 }
 
-// 获取某个POST/PATCH/PUT参数值的string类型
-func (ctx *Context) Post(key string) string {
-	if err := ctx.parseForm(); err != nil {
+// QueryParams 获取某个GET参数的所有值，并判断参数是否存在
+func (ctx *Context) QueryParams(key string) ([]string, bool) {
+	ctx.initQueryCache()
+	values, ok := ctx.queryCache[key]
+	return values, ok
+}
+
+// AllQueryValue 获取所有GET参数
+func (ctx *Context) AllQueryValue() url.Values {
+	ctx.initQueryCache()
+	return ctx.queryCache
+}
+
+// FormValue 获取某个Form参数值的string类型
+func (ctx *Context) FormValue(key string) string {
+	if err := ctx.InitFormCache(); err != nil {
 		return ""
 	}
-	vs := ctx.Request.PostForm[key]
-	if len(vs) == 0 {
-		return ""
-	}
-	return ctx.Request.PostForm[key][0]
+	return ctx.formCache.Get(key)
 }
 
-// 获取某个POST/PATCH/PUT参数
-func (ctx *Context) PostParam(key string) (string, bool) {
-	if err := ctx.parseForm(); err != nil {
-		return "", false
-	}
-	vs := ctx.Request.PostForm[key]
-	if len(vs) == 0 {
-		return "", false
-	}
-	return ctx.Request.PostForm[key][0], true
-}
-
-// 获取所有GET/POST/PUT参数值
-func (ctx *Context) FormParams() url.Values {
-	if err := ctx.parseForm(); err != nil {
-		return emptyValues
-	}
-	return ctx.Request.Form
-}
-
-// 获取某个GET/POST/PUT参数值的string类型
-func (ctx *Context) Form(key string) string {
-	if err := ctx.parseForm(); err != nil {
-		return ""
-	}
-	vs := ctx.Request.Form[key]
-	if len(vs) == 0 {
-		return ""
-	}
-	return ctx.Request.Form[key][0]
-}
-
-// 获取单个GET/POST/PUT参数
+// FormParam 获取某个Form参数的第一个值，并判断参数是否存在
 func (ctx *Context) FormParam(key string) (string, bool) {
-	if err := ctx.parseForm(); err != nil {
+	if err := ctx.InitFormCache(); err != nil {
 		return "", false
 	}
-	vs := ctx.Request.Form[key]
-	if len(vs) == 0 {
+	if values, exist := ctx.formCache[key]; !exist {
 		return "", false
+	} else {
+		return values[0], true
 	}
-	return ctx.Request.Form[key][0], true
 }
 
-// 将json格式的body数据反序列化到传入的对象
-func (ctx *Context) ParseJSON(obj interface{}) error {
-	body, err := ioutil.ReadAll(ctx.Request.Body)
+// FormValues 获取某个Form参数的所有值
+func (ctx *Context) FormValues(key string) []string {
+	if err := ctx.InitFormCache(); err != nil {
+		return nil
+	}
+	return ctx.formCache[key]
+}
+
+// FormParams 获取某个Form参数的所有值，并判断参数是否存在
+func (ctx *Context) FormParams(key string) ([]string, bool) {
+	if err := ctx.InitFormCache(); err != nil {
+		return nil, false
+	}
+	if values, exist := ctx.formCache[key]; !exist {
+		return nil, false
+	} else {
+		return values, true
+	}
+}
+
+// AllFormValue 获取所有Form参数
+func (ctx *Context) AllFormValue() url.Values {
+	if err := ctx.InitFormCache(); err != nil {
+		return nil
+	}
+	return ctx.formCache
+}
+
+// FormFile 根据参数名获取上传的第一个文件
+func (ctx *Context) FormFile(name string) (*multipart.FileHeader, error) {
+	if ctx.Request.MultipartForm == nil {
+		if err := ctx.Request.ParseMultipartForm(ctx.engine.config.MaxMultipartMemory); err != nil {
+			return nil, err
+		}
+	}
+	f, fileHeader, err := ctx.Request.FormFile(name)
+	if err != nil {
+		return nil, err
+	}
+	_ = f.Close()
+
+	return fileHeader, err
+}
+
+// FormFiles 根据参数名获取上传的所有文件
+func (ctx *Context) FormFiles(name string) ([]*multipart.FileHeader, error) {
+	if ctx.Request.MultipartForm == nil {
+		if err := ctx.Request.ParseMultipartForm(ctx.engine.config.MaxMultipartMemory); err != nil {
+			return nil, err
+		}
+	}
+	if fileHeaders, exist := ctx.Request.MultipartForm.File[name]; !exist {
+		return nil, nil
+	} else {
+		return fileHeaders, nil
+	}
+}
+
+// SaveFile 保存上传的文件到本地路径
+func (c *Context) SaveFile(fileHeader *multipart.FileHeader, savePath string, perm os.FileMode) error {
+	f, err := fileHeader.Open()
 	if err != nil {
 		return err
 	}
-	return json.Unmarshal(body, obj)
+	defer func() {
+		_ = f.Close()
+	}()
+
+	if err = os.MkdirAll(filepath.Dir(savePath), perm); err != nil {
+		return err
+	}
+
+	var out *os.File
+	out, err = os.Create(savePath)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = out.Close()
+	}()
+
+	_, err = io.Copy(out, f)
+	return err
 }
 
-// 向客户端发送重定向响应
+// ServeFile 将服务端指定路径的文件写入到客户端流
+func (ctx *Context) ServeFile(filePath string) {
+	http.ServeFile(ctx.ResponseWriter, ctx.Request, filePath)
+}
+
+// FileFromFS writes the specified file from http.FileSystem into the body stream in an efficient way.
+func (ctx *Context) FileFromFS(filepath string, fs http.FileSystem) {
+	defer func(old string) {
+		ctx.Request.URL.Path = old
+	}(ctx.Request.URL.Path)
+
+	ctx.Request.URL.Path = filepath
+
+	http.FileServer(fs).ServeHTTP(ctx.ResponseWriter, ctx.Request)
+}
+
+// Redirect 向客户端发送重定向响应
 func (ctx *Context) Redirect(code int, url string) error {
 	if code < 300 || code > 308 {
-		ctx.engine.panicEvent(ctx.ResponseWriter, ctx.Request, "The status code can only be 30x")
-		return nil
+		return errors.New("状态码只能是30x")
 	}
+	ctx.Status = code
 	ctx.ResponseWriter.Header().Set("Location", url)
 	ctx.ResponseWriter.WriteHeader(code)
 	return nil
 }
 
-// 输出字符串
+// String 输出字符串
 func (ctx *Context) String(status int, data string, charset ...string) (err error) {
 	if len(charset) == 0 {
-		ctx.ResponseWriter.Header().Set("Content-Type", "text/plain; charset="+ctx.engine.Config.Charset)
+		ctx.ResponseWriter.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	} else {
 		ctx.ResponseWriter.Header().Set("Content-Type", "text/plain; charset="+charset[0])
 	}
@@ -266,27 +300,35 @@ func (ctx *Context) String(status int, data string, charset ...string) (err erro
 	return
 }
 
-// 输出JSON
-func (ctx *Context) JSON(status int, data interface{}, charset ...string) error {
-	dataBytes, err := json.Marshal(&data)
+// JSON 输出JSON
+func (ctx *Context) JSON(status int, data any, charset ...string) error {
+	buf, err := json.Marshal(&data)
 	if err != nil {
 		return err
 	}
 	if len(charset) == 0 {
-		ctx.ResponseWriter.Header().Set("Content-Type", "application/json; charset="+ctx.engine.Config.Charset)
+		ctx.ResponseWriter.Header().Set("Content-Type", "application/json; charset=utf-8")
 	} else {
 		ctx.ResponseWriter.Header().Set("Content-Type", "application/json; charset="+charset[0])
 	}
 	ctx.ResponseWriter.WriteHeader(status)
-	_, err = ctx.ResponseWriter.Write(dataBytes)
+	_, err = ctx.ResponseWriter.Write(buf)
 	return err
 }
 
-// 输出状态码
-func (ctx *Context) Status(status int) (err error) {
-	ctx.ResponseWriter.WriteHeader(status)
-	if status != http.StatusNoContent {
-		_, err = ctx.ResponseWriter.Write([]byte(http.StatusText(status)))
-	}
+// NoContent 输出204状态码
+func (ctx *Context) NoContent() (err error) {
+	ctx.Status = http.StatusNoContent
+	ctx.ResponseWriter.WriteHeader(http.StatusNoContent)
+	_, err = ctx.ResponseWriter.Write([]byte(http.StatusText(http.StatusNoContent)))
 	return
+}
+
+// ParseJSON 将json格式的body数据反序列化到传入的对象
+func (ctx *Context) ParseJSON(obj any) error {
+	body, err := io.ReadAll(ctx.Request.Body)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(body, obj)
 }

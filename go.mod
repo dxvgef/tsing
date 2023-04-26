@@ -1,3 +1,3 @@
 module github.com/dxvgef/tsing
 
-go 1.14
+go 1.18

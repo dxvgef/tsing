@@ -1,232 +1,257 @@
 package tsing
 
 import (
+	"errors"
+	"fmt"
+	"log"
 	"net/http"
-	"strconv"
 	"sync"
 )
 
-// 路由处理器
-type Handler func(*Context) error
-
-// 处理器链
-type HandlersChain []Handler
-
-// 引擎配置
+// Config 引擎参数配置
 type Config struct {
-	RootPath           string // 应用的根路径
-	AllowOrigins       string
-	ExposeHeaders      string
-	AllowMethods       string
-	AllowHeaders       string
-	Charset            string       // 响应的字符集，默认是UTF-8
-	MaxMultipartMemory int64        // 允许的请求Body大小(默认1 << 20 = 1MB)
-	EventHandler       EventHandler // 事件-处理器函数，如果不赋值，则不启用事件
-	UseRawPath         bool         // 使用url.RawPath查找参数
-	UnescapePathValues bool         // 反转义路由参数
-	EventTrace         bool         // 事件-启用跟踪信息
-	EventShortPath     bool         // 事件-启用短文件路径
-	EventHandlerError  bool         // 事件-启用处理器返回的错误
-	EventSource        bool         // 事件-启用来源
-	Recover            bool         // 自动恢复处理器的panic
-	CORS               bool         // 是否启用自动CORS处理
-	AllowCredentials   bool
+	MaxMultipartMemory          int64     // 允许的请求Body大小(默认32 << 20 = 32MB)
+	Recovery                    bool      // 自动恢复panic，防止进程退出
+	HandleMethodNotAllowed      bool      // 不处理 405 错误（可以减少路由匹配时间），以 404 错误返回
+	AfterHandlerFirstInFirstOut bool      // 后置处理器以先进先出的顺序执行，否则仿defer的风格以先进后出的方式执行
+	ErrorFunc                   ErrorFunc // 错误回调函数
 }
 
-// 引擎
+// Engine 引擎
 type Engine struct {
-	*Router                 // 路由器
-	Config      *Config     // 配置
-	contextPool sync.Pool   // context池
-	eventPool   sync.Pool   // event池
-	trees       methodTrees // 路由树
+	RouterGroup
+	config      Config
+	maxParams   uint16
+	maxSections uint16
+	contextPool sync.Pool
+	trees       methodTrees
 }
 
-// 创建一个新引擎
-func New(config *Config) *Engine {
-	if config.MaxMultipartMemory == 0 {
-		config.MaxMultipartMemory = MaxMultipartMemory
-	}
-	if config.CORS {
-		if config.AllowMethods == "" {
-			config.AllowMethods = "GET,POST,PUT,DELETE,OPTIONS,PATCH"
-		}
-		if config.AllowHeaders == "" {
-			config.AllowHeaders = "*"
-		}
-		if config.ExposeHeaders == "" {
-			config.ExposeHeaders = "*"
-		}
-		if config.Charset == "" {
-			config.Charset = "utf-8"
-		}
-	}
-	// 初始化一个引擎
+// HandlerFunc 处理器函数
+type HandlerFunc func(*Context) error
+
+// ErrorFunc 错误回调函数
+type ErrorFunc func(*Context)
+
+// HandlersChain 处理器链
+type HandlersChain []HandlerFunc
+
+// New 新建引擎实例
+func New(config ...Config) *Engine {
 	engine := &Engine{
-		// 初始化根路由组
-		Router: &Router{
-			Handlers: nil,  // 空处理器链
-			basePath: "/",  // 设置基本路径
-			root:     true, // 标记为根路由组
+		RouterGroup: RouterGroup{
+			handlers:      nil,
+			afterHandlers: nil,
+			basePath:      "/",
+			root:          true,
 		},
-		Config: config,
-		// UseRawPath:         false,
-		// UnescapePathValues: true,
-		// MaxMultipartMemory: defaultMultipartMemory,
-
-		// 初始化一个路由树，递增值是
-		trees: make(methodTrees, 0, 7),
+		trees: make(methodTrees, 0, 9),
 	}
+	engine.RouterGroup.engine = engine
 
-	// 将引擎对象传入路由组中，便于访问引擎对象
-	engine.engine = engine
-
-	// 设置ctx池
-	engine.contextPool.New = func() interface{} {
-		return &Context{engine: engine}
-	}
-
-	// 设置event池
-	if config.EventHandler != nil {
-		engine.eventPool.New = func() interface{} {
-			return Event{
-				Status:  0,
-				Message: nil,
-				Source:  nil,
-				Trace:   nil,
-			}
+	if len(config) == 0 {
+		engine.config = Config{
+			MaxMultipartMemory:     32 << 20, // 32 MB,
+			HandleMethodNotAllowed: false,
 		}
+	} else {
+		engine.config = config[0]
+	}
+
+	engine.contextPool.New = func() any {
+		return engine.allocateContext(engine.maxParams)
 	}
 
 	return engine
 }
 
-// 实现http.Handler接口，并且是连接调度的入口
-func (engine *Engine) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
-	if engine.Config.Recover {
+func (engine *Engine) allocateContext(maxParams uint16) *Context {
+	v := make(Params, 0, maxParams)
+	skippedNodes := make([]skippedNode, 0, engine.maxSections)
+	return &Context{
+		engine:       engine,
+		params:       &v,
+		skippedNodes: &skippedNodes,
+	}
+}
+
+func (engine *Engine) addRoute(method, path string, handlers HandlersChain, afterHandlers HandlersChain) {
+	if path[0] != '/' {
+		log.Fatalln("路径必须以'/'开头")
+	}
+	if method == "" {
+		log.Fatalln("HTTP方法不能为空")
+	}
+	if len(handlers) == 0 {
+		log.Fatalln("必须有至少一个处理器")
+	}
+
+	root := engine.trees.get(method)
+	if root == nil {
+		root = new(Node)
+		root.fullPath = "/"
+		engine.trees = append(engine.trees, methodTree{method: method, root: root})
+	}
+	root.addRoute(path, handlers, afterHandlers)
+
+	// 更新 maxParams
+	if paramsCount := countParams(path); paramsCount > engine.maxParams {
+		engine.maxParams = paramsCount
+	}
+
+	if sectionsCount := countSections(path); sectionsCount > engine.maxSections {
+		engine.maxSections = sectionsCount
+	}
+}
+
+func (engine *Engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	ctx := engine.contextPool.Get().(*Context)
+	ctx.Request = req
+	ctx.ResponseWriter = w
+	ctx.reset()
+
+	// 处理panic
+	if engine.config.Recovery {
 		defer func() {
-			err := recover()
-			if err != nil && engine.Config.EventHandler != nil {
-				// 触发panic事件
-				engine.panicEvent(resp, req, err)
+			if err := recover(); err != nil {
+				ctx.Status = http.StatusInternalServerError
+				ctx.Error = fmt.Errorf("%v", err)
+				if engine.config.ErrorFunc != nil {
+					engine.config.ErrorFunc(ctx)
+				} else {
+					ctx.ResponseWriter.WriteHeader(ctx.Status)
+					_, _ = ctx.ResponseWriter.Write(strToBytes(ctx.Error.Error()))
+				}
 			}
 		}()
 	}
 
-	// 从池中取出一个ctx
-	ctx := engine.contextPool.Get().(*Context)
-	// 重置取出的ctx
-	ctx.reset(req, resp)
-
-	// 处理请求
 	engine.handleRequest(ctx)
 
-	// 将ctx放回池中
 	engine.contextPool.Put(ctx)
 }
 
-// 处理连接请求
 func (engine *Engine) handleRequest(ctx *Context) {
-	httpMethod := ctx.Request.Method
-	rPath := ctx.Request.URL.Path
-	unescape := false
+	var (
+		err  error
+		node nodeValue
+	)
+	method := ctx.Request.Method
+	url := ctx.Request.URL.Path
 
-	if engine.Config.UseRawPath && len(ctx.Request.URL.RawPath) > 0 {
-		rPath = ctx.Request.URL.RawPath
-		unescape = engine.Config.UnescapePathValues
-	}
-
-	for k := range engine.trees {
-		if engine.trees[k].method != httpMethod {
+	// 在指定方法树中查找路径
+	t := engine.trees
+	for i, tl := 0, len(t); i < tl; i++ {
+		// 只在方法匹配的树中查找
+		if t[i].method != method {
 			continue
 		}
-		root := engine.trees[k].root
-		value := root.getValue(rPath, ctx.pathParams, unescape)
-		if value.handlers != nil {
-			// 为ctx属性赋值
-			ctx.handlers = value.handlers
-			ctx.pathParams = value.params
-			ctx.fullPath = value.fullPath
-			// 自动处理OPTIONS请求
-			if engine.Config.CORS {
-				engine.setCORS(ctx.Request, ctx.ResponseWriter)
-			}
-			// 执行ctx中的处理器
-			ctx.next()
-			return
+		root := t[i].root
+		// 查找路由节点
+		node = root.getValue(url, ctx.params, ctx.skippedNodes)
+		// 如果存在路由参数
+		if node.params != nil {
+			ctx.params = node.params
 		}
 		break
 	}
-	for k := range engine.trees {
-		if engine.trees[k].method == httpMethod {
-			continue
+
+	// 如果找到了处理器
+	if node.handlers != nil {
+		ctx.fullPath = node.fullPath
+		// 执行处理器（已组合了前置处理器和路由处理器）
+		for k := range node.handlers {
+			if ctx.broke {
+				break
+			}
+			if err = node.handlers[k](ctx); err != nil {
+				ctx.broke = true
+				ctx.Status = http.StatusInternalServerError
+				ctx.Error = err
+				if engine.config.ErrorFunc != nil {
+					engine.config.ErrorFunc(ctx)
+				} else {
+					ctx.ResponseWriter.WriteHeader(ctx.Status)
+					_, _ = ctx.ResponseWriter.Write(strToBytes(ctx.Error.Error()))
+				}
+				break
+			}
 		}
-		if value := engine.trees[k].root.getValue(rPath, nil, unescape); value.handlers != nil {
-			ctx.handlers = nil
-			// 自动处理OPTIONS请求
-			if engine.Config.CORS {
-				engine.setCORS(ctx.Request, ctx.ResponseWriter)
-				if ctx.Request.Method == "OPTIONS" {
-					ctx.ResponseWriter.WriteHeader(http.StatusNoContent)
-					ctx.Abort()
-					return
+		// 执行后置处理器
+		// 先进先出
+		if engine.config.AfterHandlerFirstInFirstOut {
+			count := len(node.afterHandlers)
+			for i := range node.afterHandlers {
+				if ctx.broke {
+					break
+				}
+				if err = node.afterHandlers[count-i-1](ctx); err != nil {
+					ctx.broke = true
+					ctx.Status = http.StatusInternalServerError
+					ctx.Error = err
+					if engine.config.ErrorFunc != nil {
+						engine.config.ErrorFunc(ctx)
+					} else {
+						ctx.ResponseWriter.WriteHeader(ctx.Status)
+						_, _ = ctx.ResponseWriter.Write(strToBytes(ctx.Error.Error()))
+					}
+					break
 				}
 			}
-			engine.methodNotAllowedEvent(ctx.ResponseWriter, ctx.Request)
-			return
+		} else {
+			// 否则仿defer风格先进后出
+			for k := range node.afterHandlers {
+				if ctx.broke {
+					break
+				}
+				if err = node.afterHandlers[k](ctx); err != nil {
+					ctx.broke = true
+					ctx.Status = http.StatusInternalServerError
+					ctx.Error = err
+					if engine.config.ErrorFunc != nil {
+						engine.config.ErrorFunc(ctx)
+					} else {
+						ctx.ResponseWriter.WriteHeader(ctx.Status)
+						_, _ = ctx.ResponseWriter.Write(strToBytes(ctx.Error.Error()))
+					}
+					break
+				}
+			}
+		}
+		return
+	}
+	// 处理 405 错误
+	if engine.config.HandleMethodNotAllowed {
+		for _, tree := range engine.trees {
+			// 只在方法不匹配的树中查找
+			if tree.method == method {
+				continue
+			}
+			// 找到了其它方法的路径
+			if node = tree.root.getValue(url, nil, ctx.skippedNodes); node.handlers != nil {
+				// 405 错误
+				ctx.broke = true
+				ctx.Status = http.StatusMethodNotAllowed
+				ctx.Error = errors.New(http.StatusText(http.StatusMethodNotAllowed))
+				if engine.config.ErrorFunc != nil {
+					engine.config.ErrorFunc(ctx)
+				} else {
+					ctx.ResponseWriter.WriteHeader(ctx.Status)
+					_, _ = ctx.ResponseWriter.Write(strToBytes(ctx.Error.Error()))
+				}
+				return
+			}
 		}
 	}
 
-	// 触发404事件
-	ctx.handlers = nil
-	// 自动处理OPTIONS请求
-	if engine.Config.CORS {
-		engine.setCORS(ctx.Request, ctx.ResponseWriter)
-		if ctx.Request.Method == "OPTIONS" {
-			ctx.ResponseWriter.WriteHeader(http.StatusNoContent)
-			ctx.Abort()
-		}
-	}
-	// engine.methodNotAllowedEvent(ctx.ResponseWriter, ctx.Request)
-	engine.notFoundEvent(ctx.ResponseWriter, ctx.Request)
-}
-
-// 添加路由
-func (engine *Engine) addRoute(method, path string, handlers HandlersChain) {
-	if path[0] != '/' {
-		panic("The path must begin with '/'")
-	}
-	if method == "" {
-		panic("HTTP method can not be empty")
-	}
-	if len(handlers) == 0 {
-		panic("[" + method + "]" + path + " must be at least one handler")
-	}
-
-	// 查找方法是否存在
-	root := engine.trees.get(method)
-	// 如果方法不存在
-	if root == nil {
-		// 创建一个新的根节点
-		root = new(node)
-		root.fullPath = "/"
-		engine.trees = append(engine.trees, methodTree{
-			method: method,
-			root:   root,
-		})
-	}
-	root.addRoute(path, handlers)
-}
-
-// 在resp中设置CORS相关的头信息
-func (engine *Engine) setCORS(req *http.Request, resp http.ResponseWriter) {
-	if engine.Config.AllowOrigins == "" {
-		resp.Header().Set("Access-Control-Allow-Origin", req.Header.Get("Origin"))
+	// 404 错误
+	ctx.broke = true
+	ctx.Status = http.StatusNotFound
+	ctx.Error = errors.New(http.StatusText(http.StatusNotFound))
+	if engine.config.ErrorFunc != nil {
+		engine.config.ErrorFunc(ctx)
 	} else {
-		resp.Header().Set("Access-Control-Allow-Origin", engine.Config.AllowOrigins)
+		ctx.ResponseWriter.WriteHeader(ctx.Status)
+		_, _ = ctx.ResponseWriter.Write(strToBytes(ctx.Error.Error()))
 	}
-	resp.Header().Set("Access-Control-Allow-Methods", engine.Config.AllowMethods)
-	resp.Header().Set("Access-Control-Allow-Headers", engine.Config.AllowHeaders)
-	resp.Header().Set("Access-Control-Expose-Headers", engine.Config.ExposeHeaders)
-	resp.Header().Set("Access-Control-Allow-Credentials", strconv.FormatBool(engine.Config.AllowCredentials))
 }

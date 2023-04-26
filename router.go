@@ -1,198 +1,157 @@
 package tsing
 
 import (
-	"math"
+	"log"
 	"net/http"
-	"os"
-	"path"
-	"path/filepath"
-	"regexp"
 	"strings"
 )
 
-// 中止索引
-const abortIndex int8 = math.MaxInt8 / 2
-
-// 路由组接口
-type RouterInterface interface {
-	Append(...Handler) RouterInterface
-	Handle(string, string, ...Handler) RouterInterface
-	Any(string, ...Handler) RouterInterface
-	GET(string, ...Handler) RouterInterface
-	POST(string, ...Handler) RouterInterface
-	DELETE(string, ...Handler) RouterInterface
-	PATCH(string, ...Handler) RouterInterface
-	PUT(string, ...Handler) RouterInterface
-	OPTIONS(string, ...Handler) RouterInterface
-	HEAD(string, ...Handler) RouterInterface
-	File(string, string) RouterInterface
-	Dir(string, string) RouterInterface
+// Router 路由器接口，包括单路由和路由组
+type Router interface {
+	Routes
+	Group(string, ...HandlerFunc) *RouterGroup
 }
 
-// 路由组
-type Router struct {
-	Handlers HandlersChain
-	basePath string
-	engine   *Engine
-	root     bool
+// Routes 定义所有路由器接口
+type Routes interface {
+	Before(...HandlerFunc)
+
+	After(...HandlerFunc)
+	Handle(string, string, ...HandlerFunc)
+	GET(string, ...HandlerFunc)
+	POST(string, ...HandlerFunc)
+	DELETE(string, ...HandlerFunc)
+	PATCH(string, ...HandlerFunc)
+	PUT(string, ...HandlerFunc)
+	OPTIONS(string, ...HandlerFunc)
+	HEAD(string, ...HandlerFunc)
+	Match([]string, string, ...HandlerFunc)
 }
 
-// 计算绝对路径
-func (router *Router) calculateAbsolutePath(path string) string {
-	return joinPaths(router.basePath, path)
+// RouterGroup 路由组
+type RouterGroup struct {
+	handlers      HandlersChain
+	afterHandlers HandlersChain // 后置钩子函数
+	basePath      string
+	engine        *Engine
+	root          bool
 }
 
-// 合并处理器
-func (router *Router) combineHandlers(handlers HandlersChain) HandlersChain {
-	finalSize := len(router.Handlers) + len(handlers)
-	if finalSize >= int(abortIndex) {
-		panic("Too many handlers")
+// Before 前置钩子
+func (group *RouterGroup) Before(handlers ...HandlerFunc) {
+	group.handlers = append(group.handlers, handlers...)
+}
+
+// After 后置钩子
+func (group *RouterGroup) After(handlers ...HandlerFunc) {
+	group.afterHandlers = append(group.afterHandlers, handlers...)
+}
+
+// Group 注册路由组
+func (group *RouterGroup) Group(relativePath string, handlers ...HandlerFunc) *RouterGroup {
+	log.Println(len(group.afterHandlers))
+	return &RouterGroup{
+		handlers:      group.combineHandlers(handlers),
+		afterHandlers: group.afterHandlers,
+		basePath:      group.calculateAbsolutePath(relativePath),
+		engine:        group.engine,
 	}
+}
+
+func (group *RouterGroup) handle(httpMethod, relativePath string, handlers HandlersChain) {
+	absolutePath := group.calculateAbsolutePath(relativePath)
+	handlers = group.combineHandlers(handlers)
+	group.engine.addRoute(httpMethod, absolutePath, handlers, group.afterHandlers)
+}
+
+// Handle 注册自定义方法的路由
+func (group *RouterGroup) Handle(httpMethod, relativePath string, handlers ...HandlerFunc) {
+	group.handle(httpMethod, relativePath, handlers)
+}
+
+// POST 注册POST方法的路由
+func (group *RouterGroup) POST(relativePath string, handlers ...HandlerFunc) {
+	group.handle(http.MethodPost, relativePath, handlers)
+}
+
+// GET 注册GET方法的路由
+func (group *RouterGroup) GET(relativePath string, handlers ...HandlerFunc) {
+	group.handle(http.MethodGet, relativePath, handlers)
+}
+
+// DELETE 注册DELETE方法的路由
+func (group *RouterGroup) DELETE(relativePath string, handlers ...HandlerFunc) {
+	group.handle(http.MethodDelete, relativePath, handlers)
+}
+
+// PATCH 注册PATCH方法的路由
+func (group *RouterGroup) PATCH(relativePath string, handlers ...HandlerFunc) {
+	group.handle(http.MethodPatch, relativePath, handlers)
+}
+
+// PUT 注册PUT方法的路由
+func (group *RouterGroup) PUT(relativePath string, handlers ...HandlerFunc) {
+	group.handle(http.MethodPut, relativePath, handlers)
+}
+
+// OPTIONS 注册OPTIONS方法的路由
+func (group *RouterGroup) OPTIONS(relativePath string, handlers ...HandlerFunc) {
+	group.handle(http.MethodOptions, relativePath, handlers)
+}
+
+// HEAD 注册HEAD方法的路由
+func (group *RouterGroup) HEAD(relativePath string, handlers ...HandlerFunc) {
+	group.handle(http.MethodHead, relativePath, handlers)
+}
+
+// Match 为一个路径同时注册多个方法的路由
+func (group *RouterGroup) Match(methods []string, relativePath string, handlers ...HandlerFunc) {
+	for _, method := range methods {
+		group.handle(method, relativePath, handlers)
+	}
+}
+
+// StaticFile 注册一个指向服务端本地文件的静态路由，例如：
+// StaticFile("favicon.ico", "./resources/favicon.ico")
+func (group *RouterGroup) StaticFile(relativePath, filepath string) {
+	group.staticFileHandler(relativePath, func(c *Context) error {
+		c.ServeFile(filepath)
+		return nil
+	})
+}
+
+// StaticFileFS 与StaticFile函数类型，但可以自定义文件系统，例如：
+// StaticFileFS("favicon.ico", "./resources/favicon.ico", Dir{".", false})
+func (group *RouterGroup) StaticFileFS(relativePath, filepath string, fs http.FileSystem) {
+	group.staticFileHandler(relativePath, func(c *Context) error {
+		c.FileFromFS(filepath, fs)
+		return nil
+	})
+}
+
+func (group *RouterGroup) staticFileHandler(relativePath string, handler HandlerFunc) {
+	if strings.Contains(relativePath, ":") || strings.Contains(relativePath, "*") {
+		panic("URL parameters can not be used when serving a staticNode file")
+	}
+	group.GET(relativePath, handler)
+	group.HEAD(relativePath, handler)
+}
+
+func (group *RouterGroup) combineHandlers(handlers HandlersChain) HandlersChain {
+	finalSize := len(group.handlers) + len(handlers)
 	mergedHandlers := make(HandlersChain, finalSize)
-	copy(mergedHandlers, router.Handlers)
-	copy(mergedHandlers[len(router.Handlers):], handlers)
+	copy(mergedHandlers, group.handlers)
+	copy(mergedHandlers[len(group.handlers):], handlers)
+	return mergedHandlers
+}
+func (group *RouterGroup) combineAfterHandlers(handlers HandlersChain) HandlersChain {
+	finalSize := len(group.afterHandlers) + len(handlers)
+	mergedHandlers := make(HandlersChain, finalSize)
+	copy(mergedHandlers, group.afterHandlers)
+	copy(mergedHandlers[len(group.afterHandlers):], handlers)
 	return mergedHandlers
 }
 
-// 获得路由器对象
-func (router *Router) getRouter() RouterInterface {
-	if router.root {
-		return router.engine
-	}
-	return router
-}
-
-// 添加处理器
-func (router *Router) Append(handlers ...Handler) RouterInterface {
-	router.Handlers = append(router.Handlers, handlers...)
-	return router.getRouter()
-}
-
-// 定义路由组
-func (router *Router) Group(urlPath string, handlers ...Handler) *Router {
-	return &Router{
-		Handlers: router.combineHandlers(handlers),
-		basePath: router.calculateAbsolutePath(urlPath),
-		engine:   router.engine,
-	}
-}
-
-// 处理路由
-func (router *Router) handle(method, urlPath string, handlers HandlersChain) RouterInterface {
-	absolutePath := router.calculateAbsolutePath(urlPath)  // 计算绝对路径
-	handlers = router.combineHandlers(handlers)            // 合并处理器
-	router.engine.addRoute(method, absolutePath, handlers) // 添加路由
-	return router.getRouter()
-}
-
-// 注册自定义HTTP方法的路由
-func (router *Router) Handle(method, urlPath string, handlers ...Handler) RouterInterface {
-	if matches, err := regexp.MatchString("^[A-Z]+$", method); !matches || err != nil {
-		panic("The HTTP method [" + method + "] is not valid")
-	}
-	return router.handle(method, urlPath, handlers)
-}
-
-// 注册POST路由
-func (router *Router) POST(urlPath string, handlers ...Handler) RouterInterface {
-	return router.handle(http.MethodPost, urlPath, handlers)
-}
-
-// 注册GET路由
-func (router *Router) GET(urlPath string, handlers ...Handler) RouterInterface {
-	return router.handle(http.MethodGet, urlPath, handlers)
-}
-
-// 注册DELETE路由
-func (router *Router) DELETE(urlPath string, handlers ...Handler) RouterInterface {
-	return router.handle(http.MethodDelete, urlPath, handlers)
-}
-
-// 注册PATCH路由
-func (router *Router) PATCH(urlPath string, handlers ...Handler) RouterInterface {
-	return router.handle(http.MethodPatch, urlPath, handlers)
-}
-
-// 注册PUT路由
-func (router *Router) PUT(urlPath string, handlers ...Handler) RouterInterface {
-	return router.handle(http.MethodPut, urlPath, handlers)
-}
-
-// 注册OPTIONS路由
-func (router *Router) OPTIONS(urlPath string, handlers ...Handler) RouterInterface {
-	return router.handle(http.MethodOptions, urlPath, handlers)
-}
-
-// 注册HEAD路由
-func (router *Router) HEAD(urlPath string, handlers ...Handler) RouterInterface {
-	return router.handle(http.MethodHead, urlPath, handlers)
-}
-
-// 注册所有路由
-func (router *Router) Any(relativePath string, handlers ...Handler) RouterInterface {
-	router.handle(http.MethodGet, relativePath, handlers)
-	router.handle(http.MethodPost, relativePath, handlers)
-	router.handle(http.MethodPut, relativePath, handlers)
-	router.handle(http.MethodPatch, relativePath, handlers)
-	router.handle(http.MethodHead, relativePath, handlers)
-	router.handle(http.MethodOptions, relativePath, handlers)
-	router.handle(http.MethodDelete, relativePath, handlers)
-	router.handle(http.MethodConnect, relativePath, handlers)
-	router.handle(http.MethodTrace, relativePath, handlers)
-	return router.getRouter()
-}
-
-// 注册一个响应服务端文件的路由
-func (router *Router) File(urlPath, absPath string) RouterInterface {
-	absPath = filepath.Clean(absPath)
-	if strings.Contains(urlPath, ":") || strings.Contains(urlPath, "*") {
-		panic("urlPath for this route cannot use ':' and '*'")
-	}
-	handler := func(ctx *Context) error {
-		fileInfo, err := os.Stat(absPath)
-		if err != nil {
-			panic("Unable to find file '" + absPath + "'")
-		}
-		if fileInfo.IsDir() {
-			panic("This route cannot set a directory")
-		}
-		http.ServeFile(ctx.ResponseWriter, ctx.Request, absPath)
-		// ctx.Abort()
-		return nil
-	}
-	router.GET(urlPath, handler)
-	router.HEAD(urlPath, handler)
-	return router.getRouter()
-}
-
-// 注册一个响应服务端目录的路由
-func (router *Router) Dir(urlPath, absPath string) RouterInterface {
-	absPath = filepath.Clean(absPath)
-	if strings.Contains(urlPath, ":") || strings.Contains(urlPath, "*") {
-		panic("urlPath for this route cannot use ':' and '*'")
-	}
-	if urlPath[len(urlPath)-1] != 47 {
-		panic("urlPath must end with '/'")
-	}
-	if absPath == "" {
-		panic("absPath cannot be empty")
-	}
-
-	handler := func(ctx *Context) error {
-		relPath := ctx.pathParams.Value("filepath")
-		finalAbsPath := path.Join(absPath, relPath)
-		_, err := os.Stat(finalAbsPath)
-		if err != nil {
-			panic("Unable to find directory '" + finalAbsPath + "'")
-		}
-		http.ServeFile(ctx.ResponseWriter, ctx.Request, finalAbsPath)
-		// ctx.Abort()
-		return nil
-	}
-
-	finalURLPath := path.Join(urlPath, "/*filepath")
-	router.GET(finalURLPath, handler)
-	router.HEAD(finalURLPath, handler)
-
-	return router.getRouter()
+func (group *RouterGroup) calculateAbsolutePath(relativePath string) string {
+	return joinPaths(group.basePath, relativePath)
 }

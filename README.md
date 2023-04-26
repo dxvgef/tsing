@@ -2,14 +2,21 @@
 Tsing是一个Go语言的HTTP API框架，具有以下优秀的特性：
 - 高性能，零内存分配
 - 微核心，方便二次开发
-- 轻量，无第三方包依赖，兼容net/http标准包
+- 轻量，无第三方包依赖，兼容`net/http`标准包
+- 自动恢复处理器中的`Panic`错误，防止进程退出
 - 统一异常处理，减少代码量，使开发者专注于业务逻辑
+- 支持前置处理器（原中间件）和后置处理器
+- 后置处理器支持先进先出和先进后出两种执行顺序
 
-Tsing诞生比较晚也没有刻意的宣传推广，但由于框架核心非常精简，可靠性并不会低于其它热门框架，并且基准测试结果证明它的性能要强于所有参与测试的主流框架，已经在多个未公开的项目中稳定运行。
+`Tsing`诞生比较晚也没有刻意的宣传推广，但由于框架核心非常精简，可靠性并不会低于其它热门框架，并且基准测试结果证明它的性能要强于所有参与测试的主流框架，已经在多个未公开的项目中稳定运行。
 
-Tsing 是汉字【青】以及同音字做为名词时的英文，例如：清华大学(Tsinghua University)、青岛(Tsing Tao)。
+`Tsing`是汉字【青】以及同音字做为名词时的英文，例如：清华大学(Tsinghua University)、青岛(Tsing Tao)。
 
-> github.com/dxvgef/tsing
+## 安装
+- 要求：golang 1.18+
+```
+github.com/dxvgef/tsing/v2
+```
 
 ## 手册：
 
@@ -45,15 +52,17 @@ Benchmark_Echo_Recover-4                   21991             53318 ns/op        
 
 ## 相关资源
 
+- [dxvgef/tsing-benchmark](https://github.com/dxvgef/tsing-demo) `Tsing`与其它开源HTTP框架的基准测试库
 - [dxvgef/tsing-demo](https://github.com/dxvgef/tsing-demo) `Tsing`整合常见功能的示例项目，可以做为新项目初始化使用
-- [Tsing Gateway](https://github.com/dxvgef/tsing-gateway) 开源、跨平台、去中心化集群、动态配置的API网关
-- [Tsing Center](https://github.com/dxvgef/tsing-center) 开源、跨平台、去中心化集群、动态配置的服务中心
+- [Tsing Gateway](https://github.com/dxvgef/tsing-gateway) 跨平台、去中心化集群、动态配置的API网关
+- [Tsing Center](https://github.com/dxvgef/tsing-center) 跨平台、去中心化集群、动态配置的服务中心
+- [filter](https://github.com/dxvgef/filter) 参数值过滤包，由数据输入、格式化、校验、输出几个部份组成
 
-## 用户及案例
+## 用户案例
 
 如果你在使用本项目，请通过[Issues](https://github.com/dxvgef/tsing/issues)告知我们项目的简介
 
-## 帮助/说明
+## 帮助反馈
 
 本项目已在多个项目的生产环境中稳定运行。如有问题可在[Issues](https://github.com/dxvgef/tsing/issues)里提出。
 
