@@ -10,11 +10,11 @@ import (
 
 // Config 引擎参数配置
 type Config struct {
-	MaxMultipartMemory          int64     // 允许的请求Body大小(默认32 << 20 = 32MB)
-	Recovery                    bool      // 自动恢复panic，防止进程退出
-	HandleMethodNotAllowed      bool      // 不处理 405 错误（可以减少路由匹配时间），以 404 错误返回
-	AfterHandlerFirstInFirstOut bool      // 后置处理器以先进先出的顺序执行，否则仿defer的风格以先进后出的方式执行
-	ErrorFunc                   ErrorFunc // 错误回调函数
+	MaxMultipartMemory          int64        // 允许的请求Body大小(默认32 << 20 = 32MB)
+	Recovery                    bool         // 自动恢复panic，防止进程退出
+	HandleMethodNotAllowed      bool         // 不处理 405 错误（可以减少路由匹配时间），以 404 错误返回
+	AfterHandlerFirstInFirstOut bool         // 后置处理器以先进先出的顺序执行，否则仿defer的风格以先进后出的方式执行
+	ErrorHandler                ErrorHandler // 错误回调处理器
 }
 
 // Engine 引擎
@@ -30,8 +30,8 @@ type Engine struct {
 // HandlerFunc 处理器函数
 type HandlerFunc func(*Context) error
 
-// ErrorFunc 错误回调函数
-type ErrorFunc func(*Context)
+// ErrorHandler 错误回调处理器
+type ErrorHandler func(*Context)
 
 // HandlersChain 处理器链
 type HandlersChain []HandlerFunc
@@ -116,8 +116,8 @@ func (engine *Engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			if err := recover(); err != nil {
 				ctx.Status = http.StatusInternalServerError
 				ctx.Error = fmt.Errorf("%v", err)
-				if engine.config.ErrorFunc != nil {
-					engine.config.ErrorFunc(ctx)
+				if engine.config.ErrorHandler != nil {
+					engine.config.ErrorHandler(ctx)
 				} else {
 					ctx.ResponseWriter.WriteHeader(ctx.Status)
 					_, _ = ctx.ResponseWriter.Write(strToBytes(ctx.Error.Error()))
@@ -168,8 +168,8 @@ func (engine *Engine) handleRequest(ctx *Context) {
 				ctx.broke = true
 				ctx.Status = http.StatusInternalServerError
 				ctx.Error = err
-				if engine.config.ErrorFunc != nil {
-					engine.config.ErrorFunc(ctx)
+				if engine.config.ErrorHandler != nil {
+					engine.config.ErrorHandler(ctx)
 				} else {
 					ctx.ResponseWriter.WriteHeader(ctx.Status)
 					_, _ = ctx.ResponseWriter.Write(strToBytes(ctx.Error.Error()))
@@ -189,8 +189,8 @@ func (engine *Engine) handleRequest(ctx *Context) {
 					ctx.broke = true
 					ctx.Status = http.StatusInternalServerError
 					ctx.Error = err
-					if engine.config.ErrorFunc != nil {
-						engine.config.ErrorFunc(ctx)
+					if engine.config.ErrorHandler != nil {
+						engine.config.ErrorHandler(ctx)
 					} else {
 						ctx.ResponseWriter.WriteHeader(ctx.Status)
 						_, _ = ctx.ResponseWriter.Write(strToBytes(ctx.Error.Error()))
@@ -208,8 +208,8 @@ func (engine *Engine) handleRequest(ctx *Context) {
 					ctx.broke = true
 					ctx.Status = http.StatusInternalServerError
 					ctx.Error = err
-					if engine.config.ErrorFunc != nil {
-						engine.config.ErrorFunc(ctx)
+					if engine.config.ErrorHandler != nil {
+						engine.config.ErrorHandler(ctx)
 					} else {
 						ctx.ResponseWriter.WriteHeader(ctx.Status)
 						_, _ = ctx.ResponseWriter.Write(strToBytes(ctx.Error.Error()))
@@ -233,8 +233,8 @@ func (engine *Engine) handleRequest(ctx *Context) {
 				ctx.broke = true
 				ctx.Status = http.StatusMethodNotAllowed
 				ctx.Error = errors.New(http.StatusText(http.StatusMethodNotAllowed))
-				if engine.config.ErrorFunc != nil {
-					engine.config.ErrorFunc(ctx)
+				if engine.config.ErrorHandler != nil {
+					engine.config.ErrorHandler(ctx)
 				} else {
 					ctx.ResponseWriter.WriteHeader(ctx.Status)
 					_, _ = ctx.ResponseWriter.Write(strToBytes(ctx.Error.Error()))
@@ -248,8 +248,8 @@ func (engine *Engine) handleRequest(ctx *Context) {
 	ctx.broke = true
 	ctx.Status = http.StatusNotFound
 	ctx.Error = errors.New(http.StatusText(http.StatusNotFound))
-	if engine.config.ErrorFunc != nil {
-		engine.config.ErrorFunc(ctx)
+	if engine.config.ErrorHandler != nil {
+		engine.config.ErrorHandler(ctx)
 	} else {
 		ctx.ResponseWriter.WriteHeader(ctx.Status)
 		_, _ = ctx.ResponseWriter.Write(strToBytes(ctx.Error.Error()))
