@@ -10,11 +10,11 @@ import (
 
 // Config 引擎参数配置
 type Config struct {
-	MaxMultipartMemory          int64        // 允许的请求Body大小(默认32 << 20 = 32MB)
-	Recovery                    bool         // 自动恢复panic，防止进程退出
-	HandleMethodNotAllowed      bool         // 不处理 405 错误（可以减少路由匹配时间），以 404 错误返回
-	AfterHandlerFirstInFirstOut bool         // 后置处理器以先进先出的顺序执行，否则仿defer的风格以先进后出的方式执行
-	ErrorHandler                ErrorHandler // 错误回调处理器
+	MaxMultipartMemory         int64        // 允许的请求Body大小(默认32 << 20 = 32MB)
+	Recovery                   bool         // 自动恢复panic，防止进程退出
+	HandleMethodNotAllowed     bool         // 不处理 405 错误（可以减少路由匹配时间），以 404 错误返回
+	AfterHandlerFirstInLastOut bool         // 后置处理器以先进先出的顺序执行，否则仿defer的风格以先进后出的方式执行
+	ErrorHandler               ErrorHandler // 错误回调处理器
 }
 
 // Engine 引擎
@@ -179,13 +179,13 @@ func (engine *Engine) handleRequest(ctx *Context) {
 		}
 		// 执行后置处理器
 		// 先进先出
-		if engine.config.AfterHandlerFirstInFirstOut {
-			count := len(node.afterHandlers)
-			for i := range node.afterHandlers {
+		if engine.config.AfterHandlerFirstInLastOut {
+			// 否则仿defer风格先进后出
+			for k := range node.afterHandlers {
 				if ctx.broke {
 					break
 				}
-				if err = node.afterHandlers[count-i-1](ctx); err != nil {
+				if err = node.afterHandlers[k](ctx); err != nil {
 					ctx.broke = true
 					ctx.Status = http.StatusInternalServerError
 					ctx.Error = err
@@ -199,12 +199,12 @@ func (engine *Engine) handleRequest(ctx *Context) {
 				}
 			}
 		} else {
-			// 否则仿defer风格先进后出
-			for k := range node.afterHandlers {
+			count := len(node.afterHandlers)
+			for i := range node.afterHandlers {
 				if ctx.broke {
 					break
 				}
-				if err = node.afterHandlers[k](ctx); err != nil {
+				if err = node.afterHandlers[count-i-1](ctx); err != nil {
 					ctx.broke = true
 					ctx.Status = http.StatusInternalServerError
 					ctx.Error = err
