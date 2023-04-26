@@ -51,12 +51,12 @@ func (ctx *Context) reset() {
 	*ctx.skippedNodes = (*ctx.skippedNodes)[:0]
 }
 
-// FullPath returns a matched route full path. For not found routes
-// returns an empty string.
-//
-//	router.GET("/user/:id", func(c *gin.Context) {
-//	    c.FullPath() == "/user/:id" // true
-//	})
+// EngineConfig 获取引擎配置
+func (ctx *Context) EngineConfig() Config {
+	return ctx.engine.config
+}
+
+// FullPath 返回路由注册时的路径
 func (ctx *Context) FullPath() string {
 	return ctx.fullPath
 }
