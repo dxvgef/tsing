@@ -12,9 +12,10 @@ import (
 
 // 错误回调处理器
 func errorHandler(ctx *Context) {
-	log.Println("错误:", ctx.Status, ctx.Error)
 	// 自动响应OPTIONS请求，用于解决CORS问题
-	if ctx.Status == http.StatusMethodNotAllowed && ctx.Request.Method == "OPTIONS" {
+	if ctx.Request.Method == "OPTIONS" && ctx.Status == http.StatusMethodNotAllowed {
+		ctx.Status = http.StatusNoContent
+		ctx.Error = nil
 		ctx.ResponseWriter.Header().Set("Access-Control-Allow-Origin", ctx.Request.Header.Get("Origin"))
 		ctx.ResponseWriter.Header().Set("Vary", "Origin")
 		ctx.ResponseWriter.Header().Set("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS")
@@ -23,10 +24,12 @@ func errorHandler(ctx *Context) {
 		ctx.ResponseWriter.Header().Set("Access-Control-Allow-Credentials", "true")
 		ctx.ResponseWriter.Header().Set("Access-Control-Max-Age", "2592000")
 		ctx.ResponseWriter.WriteHeader(http.StatusNoContent)
+		log.Println("成功：", ctx.Status, "自动响应了OPTIONS请求")
 		return
 	}
 
 	// 常规处理错误
+	log.Println("错误:", ctx.Status, ctx.Error)
 	ctx.ResponseWriter.WriteHeader(ctx.Status)
 	if ctx.Error != nil {
 		_, _ = ctx.ResponseWriter.Write([]byte(ctx.Error.Error()))
@@ -52,9 +55,7 @@ func TestEcho(t *testing.T) {
 
 // 测试处理器执行顺序
 func TestHandlers(t *testing.T) {
-	app := New(Config{
-		AfterHandlerFirstInFirstOut: true, // 后置处理器先注册先执行，否则先注册后执行
-	})
+	app := New()
 	app.Before(func(ctx *Context) error {
 		t.Log("1 执行了全局前置处理器")
 		return nil
@@ -232,6 +233,25 @@ func TestPanicError(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	r, err := http.NewRequestWithContext(ctx, "GET", "/", nil)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	app.ServeHTTP(httptest.NewRecorder(), r)
+}
+
+// 测试CORS
+func TestCORS(t *testing.T) {
+	app := New(Config{
+		ErrorHandler:           errorHandler, // 通过错误处理器来实现自动响应OPTIONS请求
+		HandleMethodNotAllowed: true,         // 错误处理器中需要判断405状态码
+	})
+	app.GET("/", func(ctx *Context) error {
+		return nil
+	})
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	r, err := http.NewRequestWithContext(ctx, "OPTIONS", "/", nil)
 	if err != nil {
 		t.Error(err)
 		return
