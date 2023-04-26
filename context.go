@@ -114,7 +114,9 @@ func (ctx *Context) InitFormCache() error {
 		ctx.formCache = make(url.Values)
 		req := ctx.Request
 		if err := req.ParseMultipartForm(ctx.engine.config.MaxMultipartMemory); err != nil {
-			return err
+			if !errors.Is(err, http.ErrNotMultipart) {
+				return err
+			}
 		}
 		ctx.formCache = req.PostForm
 	}
