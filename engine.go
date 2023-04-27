@@ -120,7 +120,7 @@ func (engine *Engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 					engine.config.ErrorHandler(ctx)
 				} else {
 					ctx.ResponseWriter.WriteHeader(ctx.Status)
-					_, _ = ctx.ResponseWriter.Write(strToBytes(ctx.Error.Error()))
+					_, _ = ctx.ResponseWriter.Write(strToBytes(ctx.Error.Error())) //nolint:errcheck
 				}
 			}
 		}()
@@ -172,7 +172,7 @@ func (engine *Engine) handleRequest(ctx *Context) {
 					engine.config.ErrorHandler(ctx)
 				} else {
 					ctx.ResponseWriter.WriteHeader(ctx.Status)
-					_, _ = ctx.ResponseWriter.Write(strToBytes(ctx.Error.Error()))
+					_, _ = ctx.ResponseWriter.Write(strToBytes(ctx.Error.Error())) //nolint:errcheck
 				}
 				break
 			}
@@ -193,7 +193,7 @@ func (engine *Engine) handleRequest(ctx *Context) {
 						engine.config.ErrorHandler(ctx)
 					} else {
 						ctx.ResponseWriter.WriteHeader(ctx.Status)
-						_, _ = ctx.ResponseWriter.Write(strToBytes(ctx.Error.Error()))
+						_, _ = ctx.ResponseWriter.Write(strToBytes(ctx.Error.Error())) //nolint:errcheck
 					}
 					break
 				}
@@ -212,7 +212,7 @@ func (engine *Engine) handleRequest(ctx *Context) {
 						engine.config.ErrorHandler(ctx)
 					} else {
 						ctx.ResponseWriter.WriteHeader(ctx.Status)
-						_, _ = ctx.ResponseWriter.Write(strToBytes(ctx.Error.Error()))
+						_, _ = ctx.ResponseWriter.Write(strToBytes(ctx.Error.Error())) //nolint:errcheck
 					}
 					break
 				}
@@ -237,7 +237,7 @@ func (engine *Engine) handleRequest(ctx *Context) {
 					engine.config.ErrorHandler(ctx)
 				} else {
 					ctx.ResponseWriter.WriteHeader(ctx.Status)
-					_, _ = ctx.ResponseWriter.Write(strToBytes(ctx.Error.Error()))
+					_, _ = ctx.ResponseWriter.Write(strToBytes(ctx.Error.Error())) //nolint:errcheck
 				}
 				return
 			}
@@ -252,6 +252,6 @@ func (engine *Engine) handleRequest(ctx *Context) {
 		engine.config.ErrorHandler(ctx)
 	} else {
 		ctx.ResponseWriter.WriteHeader(ctx.Status)
-		_, _ = ctx.ResponseWriter.Write(strToBytes(ctx.Error.Error()))
+		_, _ = ctx.ResponseWriter.Write(strToBytes(ctx.Error.Error())) //nolint:errcheck
 	}
 }

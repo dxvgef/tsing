@@ -10,7 +10,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"sync"
 )
 
 // Context is the most important part of gin. It allows us to pass variables between middleware,
@@ -27,16 +26,8 @@ type Context struct {
 	engine       *Engine
 	params       *Params
 	skippedNodes *[]skippedNode
-
-	// This mutex protects Keys map.
-	mu sync.RWMutex
-
-	// queryCache caches the query result from c.Request.URL.QueryValue().
-	queryCache url.Values
-
-	// formCache caches c.Request.PostForm, which contains the parsed form data from POST, PATCH,
-	// or PUT body parameters.
-	formCache url.Values
+	queryCache   url.Values
+	formCache    url.Values
 }
 
 func (ctx *Context) reset() {
@@ -173,7 +164,7 @@ func (ctx *Context) FormParam(key string) (string, bool) {
 	}
 	if values, exist := ctx.formCache[key]; !exist {
 		return "", false
-	} else {
+	} else { //nolint:golint
 		return values[0], true
 	}
 }
@@ -193,7 +184,7 @@ func (ctx *Context) FormParams(key string) ([]string, bool) {
 	}
 	if values, exist := ctx.formCache[key]; !exist {
 		return nil, false
-	} else {
+	} else { //nolint:golint
 		return values, true
 	}
 }
@@ -217,7 +208,7 @@ func (ctx *Context) FormFile(name string) (*multipart.FileHeader, error) {
 	if err != nil {
 		return nil, err
 	}
-	_ = f.Close()
+	_ = f.Close() //nolint:errcheck
 
 	return fileHeader, err
 }
@@ -231,19 +222,19 @@ func (ctx *Context) FormFiles(name string) ([]*multipart.FileHeader, error) {
 	}
 	if fileHeaders, exist := ctx.Request.MultipartForm.File[name]; !exist {
 		return nil, nil
-	} else {
+	} else { //nolint:golint
 		return fileHeaders, nil
 	}
 }
 
 // SaveFile 保存上传的文件到本地路径
-func (c *Context) SaveFile(fileHeader *multipart.FileHeader, savePath string, perm os.FileMode) error {
+func (ctx *Context) SaveFile(fileHeader *multipart.FileHeader, savePath string, perm os.FileMode) error {
 	f, err := fileHeader.Open()
 	if err != nil {
 		return err
 	}
 	defer func() {
-		_ = f.Close()
+		_ = f.Close() //nolint:errcheck
 	}()
 
 	if err = os.MkdirAll(filepath.Dir(savePath), perm); err != nil {
@@ -251,12 +242,12 @@ func (c *Context) SaveFile(fileHeader *multipart.FileHeader, savePath string, pe
 	}
 
 	var out *os.File
-	out, err = os.Create(savePath)
+	out, err = os.Create(savePath) //nolint:gosec
 	if err != nil {
 		return err
 	}
 	defer func() {
-		_ = out.Close()
+		_ = out.Close() //nolint:errcheck
 	}()
 
 	_, err = io.Copy(out, f)

@@ -144,13 +144,6 @@ func (group *RouterGroup) combineHandlers(handlers HandlersChain) HandlersChain 
 	copy(mergedHandlers[len(group.handlers):], handlers)
 	return mergedHandlers
 }
-func (group *RouterGroup) combineAfterHandlers(handlers HandlersChain) HandlersChain {
-	finalSize := len(group.afterHandlers) + len(handlers)
-	mergedHandlers := make(HandlersChain, finalSize)
-	copy(mergedHandlers, group.afterHandlers)
-	copy(mergedHandlers[len(group.afterHandlers):], handlers)
-	return mergedHandlers
-}
 
 func (group *RouterGroup) calculateAbsolutePath(relativePath string) string {
 	return joinPaths(group.basePath, relativePath)

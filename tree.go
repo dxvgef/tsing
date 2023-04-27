@@ -23,9 +23,9 @@ type Param struct {
 // It is therefore safe to read values by the index.
 type Params []Param
 
-// Get returns the value of the first Param which key matches the given name and a boolean true.
-// If no matching Param is found, an empty string is returned and a boolean false .
+// Get 获取路径参数
 func (ps Params) Get(name string) (string, bool) {
+	//nolint:gocritic
 	for _, entry := range ps {
 		if entry.Key == name {
 			return entry.Value, true
@@ -197,7 +197,7 @@ walk:
 				if n.nType != wildcardNode {
 					pathSeg = strings.SplitN(pathSeg, "/", 2)[0]
 				}
-				prefix := fullPath[:strings.Index(fullPath, pathSeg)] + n.path
+				prefix := fullPath[:strings.Index(fullPath, pathSeg)] + n.path //nolint:gocritic
 				panic("'" + pathSeg +
 					"' in new path '" + fullPath +
 					"' conflicts with existing wildcard '" + n.path +
@@ -607,30 +607,6 @@ walk: // Outer loop for walking the tree
 		value.afterHandlers = n.afterHandlers
 		return
 	}
-}
-
-// Makes a case-insensitive lookup of the given path and tries to find a handler.
-// It can optionally also fix trailing slashes.
-// It returns the case-corrected path and a bool indicating whether the lookup
-// was successful.
-func (n *Node) findCaseInsensitivePath(path string, fixTrailingSlash bool) ([]byte, bool) {
-	const stackBufSize = 128
-
-	// Before a staticNode sized buffer on the stack in the common case.
-	// If the path is too long, allocate a buffer on the heap instead.
-	buf := make([]byte, 0, stackBufSize)
-	if length := len(path) + 1; length > stackBufSize {
-		buf = make([]byte, 0, length)
-	}
-
-	ciPath := n.findCaseInsensitivePathRec(
-		path,
-		buf,       // Preallocate enough memory for new path
-		[4]byte{}, // Empty rune buffer
-		fixTrailingSlash,
-	)
-
-	return ciPath, ciPath != nil
 }
 
 // 将数组中的字节左移n个字节

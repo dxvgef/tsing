@@ -187,7 +187,7 @@ func TestFormValue(t *testing.T) {
 	app.ServeHTTP(httptest.NewRecorder(), r)
 }
 
-// 测试404错误
+// 测试 404 错误
 func TestNotFoundError(t *testing.T) {
 	app := New(Config{
 		ErrorHandler: errorHandler,
@@ -202,7 +202,7 @@ func TestNotFoundError(t *testing.T) {
 	app.ServeHTTP(httptest.NewRecorder(), r)
 }
 
-// 测试405事件
+// 测试 405 事件
 func TestMethodNotAllowedError(t *testing.T) {
 	app := New(Config{
 		HandleMethodNotAllowed: true,
@@ -244,7 +244,7 @@ func TestPanicError(t *testing.T) {
 func TestCORS(t *testing.T) {
 	app := New(Config{
 		ErrorHandler:           errorHandler, // 通过错误处理器来实现自动响应OPTIONS请求
-		HandleMethodNotAllowed: true,         // 错误处理器中需要判断405状态码
+		HandleMethodNotAllowed: true,         // 错误处理器中需要判断 405 状态码
 	})
 	app.GET("/", func(ctx *Context) error {
 		return nil
