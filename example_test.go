@@ -53,6 +53,23 @@ func TestEcho(t *testing.T) {
 	app.ServeHTTP(httptest.NewRecorder(), r)
 }
 
+func TestStatusCode(t *testing.T) {
+	app := New()
+	app.GET("/", func(ctx *Context) error {
+		return ctx.NoContent()
+	})
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, "GET", "/", nil)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	resp := httptest.NewRecorder()
+	app.ServeHTTP(resp, req)
+	t.Log(resp.Code)
+}
+
 // 测试处理器执行顺序
 func TestHandlers(t *testing.T) {
 	app := New()
