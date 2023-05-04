@@ -53,8 +53,9 @@ func (ctx *Context) FullPath() string {
 }
 
 // Break 停止执行处理器链
-func (ctx *Context) Break() {
+func (ctx *Context) Break() *Context {
 	ctx.broke = true
+	return ctx
 }
 
 // SetValue 在Context中写入键值，可用于在本次会话的处理器链中传递
@@ -314,6 +315,13 @@ func (ctx *Context) NoContent() (err error) {
 	ctx.Status = http.StatusNoContent
 	ctx.ResponseWriter.WriteHeader(http.StatusNoContent)
 	_, err = ctx.ResponseWriter.Write([]byte(http.StatusText(http.StatusNoContent)))
+	return
+}
+
+// StatusCode 输出状态码
+func (ctx *Context) StatusCode(code int) (err error) {
+	ctx.Status = code
+	ctx.ResponseWriter.WriteHeader(code)
 	return
 }
 
