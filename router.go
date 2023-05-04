@@ -1,7 +1,6 @@
 package tsing
 
 import (
-	"log"
 	"net/http"
 	"strings"
 )
@@ -49,7 +48,6 @@ func (group *RouterGroup) After(handlers ...HandlerFunc) {
 
 // Group 注册路由组
 func (group *RouterGroup) Group(relativePath string, handlers ...HandlerFunc) *RouterGroup {
-	log.Println(len(group.afterHandlers))
 	return &RouterGroup{
 		handlers:      group.combineHandlers(handlers),
 		afterHandlers: group.afterHandlers,
