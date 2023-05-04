@@ -444,7 +444,7 @@ walk: // Outer loop for walking the tree
 				n = n.children[len(n.children)-1]
 				globalParamsCount++
 
-				switch n.nType {
+				switch n.nType { //nolint:exhaustive
 				case paramNode:
 					// fix truncate the parameter
 					// tree_test.go  line: 204
@@ -610,7 +610,7 @@ walk: // Outer loop for walking the tree
 }
 
 // 将数组中的字节左移n个字节
-func shiftNRuneBytes(rb [4]byte, n int) [4]byte {
+func shiftNRuneBytes(rb [4]byte, n int) [4]byte { //nolint:unused
 	switch n {
 	case 0:
 		return rb
@@ -626,7 +626,7 @@ func shiftNRuneBytes(rb [4]byte, n int) [4]byte {
 }
 
 // Recursive case-insensitive lookup function used by n.findCaseInsensitivePath
-func (n *Node) findCaseInsensitivePathRec(path string, ciPath []byte, rb [4]byte, fixTrailingSlash bool) []byte {
+func (n *Node) findCaseInsensitivePathRec(path string, ciPath []byte, rb [4]byte, fixTrailingSlash bool) []byte { //nolint:unused
 	npLen := len(n.path)
 
 walk: // Outer loop for walking the tree
@@ -745,7 +745,7 @@ walk: // Outer loop for walking the tree
 		}
 
 		n = n.children[0]
-		switch n.nType {
+		switch n.nType { //nolint:exhaustive
 		case paramNode:
 			// Find paramNode end (either '/' or path end)
 			end := 0
