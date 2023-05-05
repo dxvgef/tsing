@@ -311,11 +311,10 @@ func (ctx *Context) JSON(status int, data any, charset ...string) error {
 }
 
 // NoContent 输出204状态码
-func (ctx *Context) NoContent() (err error) {
+func (ctx *Context) NoContent() error {
 	ctx.Status = http.StatusNoContent
 	ctx.ResponseWriter.WriteHeader(http.StatusNoContent)
-	_, err = ctx.ResponseWriter.Write([]byte(http.StatusText(http.StatusNoContent)))
-	return
+	return nil
 }
 
 // StatusCode 输出状态码
