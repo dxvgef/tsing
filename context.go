@@ -52,10 +52,15 @@ func (ctx *Context) FullPath() string {
 	return ctx.fullPath
 }
 
-// Break 停止执行处理器链
-func (ctx *Context) Break() *Context {
+// Abort 停止执行该路由注册的其它处理器
+func (ctx *Context) Abort() *Context {
 	ctx.broke = true
 	return ctx
+}
+
+// IsAborted 判断是否已停止执行其它处理器
+func (ctx *Context) IsAborted() bool {
+	return ctx.broke
 }
 
 // SetValue 在Context中写入键值，可用于在本次会话的处理器链中传递
