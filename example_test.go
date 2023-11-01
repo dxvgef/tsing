@@ -12,28 +12,18 @@ import (
 
 // 错误回调处理器
 func errorHandler(ctx *Context) {
-	// 自动响应OPTIONS请求，用于解决CORS问题
-	if ctx.Request.Method == "OPTIONS" && ctx.Status == http.StatusMethodNotAllowed {
-		ctx.Status = http.StatusNoContent
-		ctx.Error = nil
-		ctx.ResponseWriter.Header().Set("Access-Control-Allow-Origin", ctx.Request.Header.Get("Origin"))
-		ctx.ResponseWriter.Header().Set("Vary", "Origin")
-		ctx.ResponseWriter.Header().Set("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS")
-		ctx.ResponseWriter.Header().Set("Access-Control-Allow-Headers", "*")
-		ctx.ResponseWriter.Header().Set("Access-Control-Expose-Headers", "*")
-		ctx.ResponseWriter.Header().Set("Access-Control-Allow-Credentials", "true")
-		ctx.ResponseWriter.Header().Set("Access-Control-Max-Age", "2592000")
-		ctx.ResponseWriter.WriteHeader(http.StatusNoContent)
-		log.Println("成功：", ctx.Status, "自动响应了OPTIONS请求")
-		return
-	}
-
-	// 常规处理错误
-	log.Println("错误:", ctx.Status, ctx.Error)
+	// 记录错误日志
+	log.Println("记录错误日志", ctx.Status, ctx.Error)
+	// 输出错误信息到客户端
 	ctx.ResponseWriter.WriteHeader(ctx.Status)
 	if ctx.Error != nil {
 		_, _ = ctx.ResponseWriter.Write([]byte(ctx.Error.Error()))
 	}
+}
+
+// 后置回调处理器
+func afterHandler(ctx *Context) {
+	log.Println("执行了后置处理器", ctx.IsAborted())
 }
 
 // 测试回应
@@ -70,36 +60,31 @@ func TestStatusCode(t *testing.T) {
 	t.Log(resp.Code)
 }
 
-// 测试处理器执行顺序
+// 测试处理器
 func TestHandlers(t *testing.T) {
-	app := New()
-	app.Before(func(ctx *Context) error {
-		t.Log("1 执行了全局前置处理器")
-		return nil
+	app := New(Config{
+		Recovery:     true,
+		AfterHandler: afterHandler,
 	})
-	app.After(func(ctx *Context) error {
-		t.Log("6 执行了全局后置处理器")
+	app.Use(func(ctx *Context) error {
+		t.Log("1 执行了全局中间件")
 		return nil
 	})
 	group := app.Group("/group", func(ctx *Context) error {
-		t.Log("2 执行了路由组/group 处理器")
+		t.Log("2 执行了 /group")
 		return nil
 	})
-	group.Before(func(ctx *Context) error {
-		t.Log("3 执行了路由组/group 前置处理器")
-		return nil
-	})
-	group.After(func(ctx *Context) error {
-		t.Log("5 执行了路由组/group 后置处理器")
+	group.Use(func(ctx *Context) error {
+		t.Log("3 执行了路由组 /group 中间件")
 		return nil
 	})
 	group.GET("/object", func(ctx *Context) error {
-		t.Log("4 执行了路由/group/object 处理器")
+		t.Log("4 执行了 /group/object")
 		return nil
 	})
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	r, err := http.NewRequestWithContext(ctx, "GET", "/group/object", nil)
+	r, err := http.NewRequestWithContext(ctx, "GET", "/group2/object", nil)
 	if err != nil {
 		t.Error(err)
 		return
@@ -152,7 +137,7 @@ func TestBreak(t *testing.T) {
 	group := app.Group("/group")
 	group.GET("/object", func(ctx *Context) error {
 		t.Log("ok")
-		ctx.Break()
+		ctx.Abort()
 		return nil
 	}, func(ctx *Context) error {
 		t.Error("中止失败")
