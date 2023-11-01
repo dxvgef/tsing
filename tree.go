@@ -77,15 +77,14 @@ const (
 )
 
 type Node struct {
-	path          string
-	indices       string
-	wildChild     bool
-	nType         nodeType
-	priority      uint32
-	children      []*Node // child nodes, at most 1 :paramNode style Node at the end of the array
-	handlers      HandlersChain
-	afterHandlers HandlersChain
-	fullPath      string
+	path      string
+	indices   string
+	wildChild bool
+	nType     nodeType
+	priority  uint32
+	children  []*Node // child nodes, at most 1 :paramNode style Node at the end of the array
+	handlers  HandlersChain
+	fullPath  string
 }
 
 // Increments priority of the given child and reorders if necessary
@@ -113,13 +112,13 @@ func (n *Node) incrementChildPrio(pos int) int {
 
 // addRoute adds a Node with the given handle to the path.
 // Not concurrency-safe!
-func (n *Node) addRoute(path string, handlers HandlersChain, afterHandlers HandlersChain) {
+func (n *Node) addRoute(path string, handlers HandlersChain) {
 	fullPath := path
 	n.priority++
 
 	// 如果是空树
 	if len(n.path) == 0 && len(n.children) == 0 {
-		n.insertChild(path, fullPath, handlers, afterHandlers)
+		n.insertChild(path, fullPath, handlers)
 		n.nType = rootNode
 		return
 	}
@@ -133,22 +132,20 @@ walk:
 
 		if i < len(n.path) {
 			child := Node{
-				path:          n.path[i:],
-				wildChild:     n.wildChild,
-				nType:         staticNode,
-				indices:       n.indices,
-				children:      n.children,
-				handlers:      n.handlers,
-				afterHandlers: n.afterHandlers,
-				priority:      n.priority - 1,
-				fullPath:      n.fullPath,
+				path:      n.path[i:],
+				wildChild: n.wildChild,
+				nType:     staticNode,
+				indices:   n.indices,
+				children:  n.children,
+				handlers:  n.handlers,
+				priority:  n.priority - 1,
+				fullPath:  n.fullPath,
 			}
 
 			n.children = []*Node{&child}
 			n.indices = bytesToStr([]byte{n.path[i]})
 			n.path = path[:i]
 			n.handlers = nil
-			n.afterHandlers = nil
 			n.wildChild = false
 			n.fullPath = fullPath[:parentFullPathIndex+i]
 		}
@@ -166,7 +163,7 @@ walk:
 			}
 
 			// 检查是否存在具有下一个路径字节的子字节
-			for i, max := 0, len(n.indices); i < max; i++ {
+			for i, maxIndices := 0, len(n.indices); i < maxIndices; i++ {
 				if c == n.indices[i] {
 					parentFullPathIndex += len(n.path)
 					i = n.incrementChildPrio(i)
@@ -205,7 +202,7 @@ walk:
 					"'")
 			}
 
-			n.insertChild(path, fullPath, handlers, afterHandlers)
+			n.insertChild(path, fullPath, handlers)
 			return
 		}
 
@@ -214,7 +211,6 @@ walk:
 			panic("handlers are already registered for path '" + fullPath + "'")
 		}
 		n.handlers = handlers
-		n.afterHandlers = afterHandlers
 		n.fullPath = fullPath
 		return
 	}
@@ -244,7 +240,7 @@ func findWildcard(path string) (wildcard string, i int, valid bool) {
 	return "", -1, false
 }
 
-func (n *Node) insertChild(path string, fullPath string, handlers HandlersChain, afterHandlers HandlersChain) {
+func (n *Node) insertChild(path string, fullPath string, handlers HandlersChain) {
 	for {
 		// Find prefix until first wildcard
 		wildcard, i, valid := findWildcard(path)
@@ -295,7 +291,6 @@ func (n *Node) insertChild(path string, fullPath string, handlers HandlersChain,
 
 			// Otherwise we're done. Insert the handle in the new leaf
 			n.handlers = handlers
-			n.afterHandlers = afterHandlers
 			return
 		}
 
@@ -335,12 +330,11 @@ func (n *Node) insertChild(path string, fullPath string, handlers HandlersChain,
 
 		// second Node: Node holding the variable
 		child = &Node{
-			path:          path[i:],
-			nType:         wildcardNode,
-			handlers:      handlers,
-			afterHandlers: afterHandlers,
-			priority:      1,
-			fullPath:      fullPath,
+			path:     path[i:],
+			nType:    wildcardNode,
+			handlers: handlers,
+			priority: 1,
+			fullPath: fullPath,
 		}
 		n.children = []*Node{child}
 
@@ -350,17 +344,15 @@ func (n *Node) insertChild(path string, fullPath string, handlers HandlersChain,
 	// If no wildcard was found, simply insert the path and handle
 	n.path = path
 	n.handlers = handlers
-	n.afterHandlers = afterHandlers
 	n.fullPath = fullPath
 }
 
 // nodeValue holds return values of (*Node).getValue method
 type nodeValue struct {
-	handlers      HandlersChain
-	afterHandlers HandlersChain
-	params        *Params
-	tsr           bool
-	fullPath      string
+	handlers HandlersChain
+	params   *Params
+	tsr      bool
+	fullPath string
 }
 
 type skippedNode struct {
@@ -395,14 +387,13 @@ walk: // Outer loop for walking the tree
 							(*skippedNodes)[index] = skippedNode{
 								path: prefix + path,
 								node: &Node{
-									path:          n.path,
-									wildChild:     n.wildChild,
-									nType:         n.nType,
-									priority:      n.priority,
-									children:      n.children,
-									handlers:      n.handlers,
-									afterHandlers: n.afterHandlers,
-									fullPath:      n.fullPath,
+									path:      n.path,
+									wildChild: n.wildChild,
+									nType:     n.nType,
+									priority:  n.priority,
+									children:  n.children,
+									handlers:  n.handlers,
+									fullPath:  n.fullPath,
 								},
 								paramsCount: globalParamsCount,
 							}
@@ -436,7 +427,6 @@ walk: // Outer loop for walking the tree
 					// We can recommend to redirect to the same URL without a
 					// trailing slash if a leaf exists for that path.
 					value.tsr = path == "/" && n.handlers != nil
-					value.afterHandlers = n.afterHandlers
 					return
 				}
 
@@ -480,13 +470,11 @@ walk: // Outer loop for walking the tree
 
 						// ... but we can't
 						value.tsr = len(path) == end+1
-						value.afterHandlers = n.afterHandlers
 						return
 					}
 
 					if value.handlers = n.handlers; value.handlers != nil {
 						value.fullPath = n.fullPath
-						value.afterHandlers = n.afterHandlers
 						return
 					}
 					if len(n.children) == 1 {
@@ -495,7 +483,6 @@ walk: // Outer loop for walking the tree
 						n = n.children[0]
 						value.tsr = (n.path == "/" && n.handlers != nil) || (n.path == "" && n.indices == "/")
 					}
-					value.afterHandlers = n.afterHandlers
 					return
 
 				case wildcardNode:
@@ -515,7 +502,6 @@ walk: // Outer loop for walking the tree
 					}
 
 					value.handlers = n.handlers
-					value.afterHandlers = n.afterHandlers
 					value.fullPath = n.fullPath
 					return
 
@@ -548,11 +534,8 @@ walk: // Outer loop for walking the tree
 			// Check if this Node has a handle registered.
 			if value.handlers = n.handlers; value.handlers != nil {
 				value.fullPath = n.fullPath
-				value.afterHandlers = n.afterHandlers
 				return
 			}
-
-			value.afterHandlers = n.afterHandlers
 
 			// If there is no handle for this route, but this route has a
 			// wildcard child, there must be a handle for this path with an
@@ -574,11 +557,9 @@ walk: // Outer loop for walking the tree
 					n = n.children[i]
 					value.tsr = (len(n.path) == 1 && n.handlers != nil) ||
 						(n.nType == wildcardNode && n.children[0].handlers != nil)
-					value.afterHandlers = n.afterHandlers
 					return
 				}
 			}
-			value.afterHandlers = n.afterHandlers
 			return
 		}
 
@@ -604,7 +585,6 @@ walk: // Outer loop for walking the tree
 				}
 			}
 		}
-		value.afterHandlers = n.afterHandlers
 		return
 	}
 }
@@ -669,9 +649,9 @@ walk: // Outer loop for walking the tree
 
 			if rb[0] != 0 {
 				// Old rune not finished
-				idxc := rb[0]
+				idxC := rb[0]
 				for i, c := range []byte(n.indices) {
-					if c == idxc {
+					if c == idxC {
 						// continue with child Node
 						n = n.children[i]
 						npLen = len(n.path)
@@ -686,7 +666,7 @@ walk: // Outer loop for walking the tree
 				// Runes are up to 4 byte long,
 				// -4 would definitely be another rune.
 				var off int
-				for max := min(npLen, 3); off < max; off++ {
+				for maxNPLen := min(npLen, 3); off < maxNPLen; off++ {
 					if i := npLen - off; utf8.RuneStart(oldPath[i]) {
 						// read rune from cached path
 						rv, _ = utf8.DecodeRuneInString(oldPath[i:])
@@ -723,10 +703,10 @@ walk: // Outer loop for walking the tree
 					utf8.EncodeRune(rb[:], up)
 					rb = shiftNRuneBytes(rb, off)
 
-					idxc := rb[0]
+					idxC := rb[0]
 					for i, c := range []byte(n.indices) {
 						// Uppercase matches
-						if c == idxc {
+						if c == idxC {
 							// Continue with child Node
 							n = n.children[i]
 							npLen = len(n.path)

@@ -10,11 +10,11 @@ import (
 
 // Config 引擎参数配置
 type Config struct {
-	MaxMultipartMemory         int64        // 允许的请求Body大小(默认32 << 20 = 32MB)
-	Recovery                   bool         // 自动恢复panic，防止进程退出
-	HandleMethodNotAllowed     bool         // 不处理 405 错误（可以减少路由匹配时间），以 404 错误返回
-	AfterHandlerFirstInLastOut bool         // 后置处理器以先进先出的顺序执行，否则仿defer的风格以先进后出的方式执行
-	ErrorHandler               ErrorHandler // 错误回调处理器
+	MaxMultipartMemory     int64           // 允许的请求Body大小(默认32 << 20 = 32MB)
+	Recovery               bool            // 自动恢复panic，防止进程退出
+	HandleMethodNotAllowed bool            // 不处理 405 错误（可以减少路由匹配时间），以 404 错误返回
+	ErrorHandler           CallbackHandler // 错误回调处理器
+	AfterHandler           CallbackHandler // 后置回调处理器，总是会在其它处理器全部执行完之后执行
 }
 
 // Engine 引擎
@@ -27,23 +27,22 @@ type Engine struct {
 	trees       methodTrees
 }
 
-// HandlerFunc 处理器函数
-type HandlerFunc func(*Context) error
+// Handler 路由处理器
+type Handler func(*Context) error
 
-// ErrorHandler 错误回调处理器
-type ErrorHandler func(*Context)
+// CallbackHandler 回调处理器
+type CallbackHandler func(*Context)
 
 // HandlersChain 处理器链
-type HandlersChain []HandlerFunc
+type HandlersChain []Handler
 
 // New 新建引擎实例
 func New(config ...Config) *Engine {
 	engine := &Engine{
 		RouterGroup: RouterGroup{
-			handlers:      nil,
-			afterHandlers: nil,
-			basePath:      "/",
-			root:          true,
+			handlers: nil,
+			basePath: "/",
+			root:     true,
 		},
 		trees: make(methodTrees, 0, 9),
 	}
@@ -75,7 +74,7 @@ func (engine *Engine) allocateContext(maxParams uint16) *Context {
 	}
 }
 
-func (engine *Engine) addRoute(method, path string, handlers HandlersChain, afterHandlers HandlersChain) {
+func (engine *Engine) addRoute(method, path string, handlers HandlersChain) {
 	if path[0] != '/' {
 		log.Fatalln("路径必须以'/'开头")
 	}
@@ -92,7 +91,7 @@ func (engine *Engine) addRoute(method, path string, handlers HandlersChain, afte
 		root.fullPath = "/"
 		engine.trees = append(engine.trees, methodTree{method: method, root: root})
 	}
-	root.addRoute(path, handlers, afterHandlers)
+	root.addRoute(path, handlers)
 
 	// 更新 maxParams
 	if paramsCount := countParams(path); paramsCount > engine.maxParams {
@@ -159,7 +158,11 @@ func (engine *Engine) handleRequest(ctx *Context) {
 	// 如果找到了处理器
 	if node.handlers != nil {
 		ctx.fullPath = node.fullPath
-		// 执行处理器（已组合了前置处理器和路由处理器）
+		// 函数退出时执行后置处理器
+		if engine.config.AfterHandler != nil {
+			defer engine.config.AfterHandler(ctx)
+		}
+		// 执行处理器
 		for k := range node.handlers {
 			if ctx.broke {
 				break
@@ -175,47 +178,6 @@ func (engine *Engine) handleRequest(ctx *Context) {
 					_, _ = ctx.ResponseWriter.Write(strToBytes(ctx.Error.Error())) //nolint:errcheck
 				}
 				break
-			}
-		}
-		// 执行后置处理器
-		// 先进先出
-		if engine.config.AfterHandlerFirstInLastOut {
-			// 否则仿defer风格先进后出
-			for k := range node.afterHandlers {
-				if ctx.broke {
-					break
-				}
-				if err = node.afterHandlers[k](ctx); err != nil {
-					ctx.broke = true
-					ctx.Status = http.StatusInternalServerError
-					ctx.Error = err
-					if engine.config.ErrorHandler != nil {
-						engine.config.ErrorHandler(ctx)
-					} else {
-						ctx.ResponseWriter.WriteHeader(ctx.Status)
-						_, _ = ctx.ResponseWriter.Write(strToBytes(ctx.Error.Error())) //nolint:errcheck
-					}
-					break
-				}
-			}
-		} else {
-			count := len(node.afterHandlers)
-			for i := range node.afterHandlers {
-				if ctx.broke {
-					break
-				}
-				if err = node.afterHandlers[count-i-1](ctx); err != nil {
-					ctx.broke = true
-					ctx.Status = http.StatusInternalServerError
-					ctx.Error = err
-					if engine.config.ErrorHandler != nil {
-						engine.config.ErrorHandler(ctx)
-					} else {
-						ctx.ResponseWriter.WriteHeader(ctx.Status)
-						_, _ = ctx.ResponseWriter.Write(strToBytes(ctx.Error.Error())) //nolint:errcheck
-					}
-					break
-				}
 			}
 		}
 		return
