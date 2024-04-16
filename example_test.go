@@ -132,7 +132,7 @@ func TestContextValue(t *testing.T) {
 }
 
 // 测试中止处理器链
-func TestBreak(t *testing.T) {
+func TestAbort(t *testing.T) {
 	app := New()
 	group := app.Group("/group")
 	group.GET("/object", func(ctx *Context) error {
