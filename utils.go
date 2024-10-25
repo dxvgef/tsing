@@ -25,7 +25,9 @@ func joinPaths(absolutePath, relativePath string) string {
 	}
 
 	finalPath := path.Join(absolutePath, relativePath)
-	if lastChar(relativePath) == '/' && lastChar(finalPath) != '/' {
+
+	// 如果 relativePath 以 '/' 结尾，确保 finalPath 也以 '/' 结尾
+	if lastChar(relativePath) == '/' {
 		return finalPath + "/"
 	}
 	return finalPath
@@ -38,7 +40,7 @@ func lastChar(str string) uint8 {
 	return str[len(str)-1]
 }
 
-func min(a, b int) int {
+func minNumber(a, b int) int {
 	if a <= b {
 		return a
 	}
@@ -46,23 +48,23 @@ func min(a, b int) int {
 }
 
 func longestCommonPrefix(a, b string) int {
-	i := 0
-	max := min(len(a), len(b))
-	for i < max && a[i] == b[i] {
-		i++
+	maxNumber := minNumber(len(a), len(b))
+	for i := 0; i < maxNumber; i++ {
+		if a[i] != b[i] {
+			return i
+		}
 	}
-	return i
+	return maxNumber
 }
 
-func countParams(path string) uint16 {
-	var n uint16
+func countParams(path string) int {
+	var n int
 	s := strToBytes(path)
-	n += uint16(bytes.Count(s, strColon))
-	n += uint16(bytes.Count(s, strStar))
+	n += bytes.Count(s, strColon)
+	n += bytes.Count(s, strStar)
 	return n
 }
 
-func countSections(path string) uint16 {
-	s := strToBytes(path)
-	return uint16(bytes.Count(s, strSlash))
+func countSections(path string) int {
+	return bytes.Count(strToBytes(path), strSlash)
 }

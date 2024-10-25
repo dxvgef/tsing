@@ -21,8 +21,8 @@ type Config struct {
 type Engine struct {
 	RouterGroup
 	config      Config
-	maxParams   uint16
-	maxSections uint16
+	maxParams   int
+	maxSections int
 	contextPool sync.Pool
 	trees       methodTrees
 }
@@ -48,13 +48,14 @@ func New(config ...Config) *Engine {
 	}
 	engine.RouterGroup.engine = engine
 
-	if len(config) == 0 {
+	// 设置默认配置或使用提供的配置
+	if len(config) > 0 {
+		engine.config = config[0]
+	} else {
 		engine.config = Config{
-			MaxMultipartMemory:     32 << 20, // 32 MB,
+			MaxMultipartMemory:     32 << 20, // 32 MB
 			HandleMethodNotAllowed: false,
 		}
-	} else {
-		engine.config = config[0]
 	}
 
 	engine.contextPool.New = func() any {
@@ -64,7 +65,7 @@ func New(config ...Config) *Engine {
 	return engine
 }
 
-func (engine *Engine) allocateContext(maxParams uint16) *Context {
+func (engine *Engine) allocateContext(maxParams int) *Context {
 	v := make(Params, 0, maxParams)
 	skippedNodes := make([]skippedNode, 0, engine.maxSections)
 	return &Context{
@@ -79,7 +80,7 @@ func (engine *Engine) addRoute(method, path string, handlers HandlersChain) {
 		log.Fatalln("路径必须以'/'开头")
 	}
 	if method == "" {
-		log.Fatalln("HTTP方法不能为空")
+		log.Fatalln("方法不能为空")
 	}
 	if len(handlers) == 0 {
 		log.Fatalln("必须有至少一个处理器")
@@ -135,19 +136,20 @@ func (engine *Engine) handleRequest(ctx *Context) {
 		err  error
 		node nodeValue
 	)
+
 	method := ctx.Request.Method
 	url := ctx.Request.URL.Path
+	t := engine.trees
 
 	// 在指定方法树中查找路径
-	t := engine.trees
-	for i, tl := 0, len(t); i < tl; i++ {
-		// 只在方法匹配的树中查找
+	for i := 0; i < len(t); i++ {
 		if t[i].method != method {
 			continue
 		}
+
 		root := t[i].root
-		// 查找路由节点
 		node = root.getValue(url, ctx.params, ctx.skippedNodes)
+
 		// 如果存在路由参数
 		if node.params != nil {
 			ctx.params = node.params
@@ -158,61 +160,51 @@ func (engine *Engine) handleRequest(ctx *Context) {
 	// 如果找到了处理器
 	if node.handlers != nil {
 		ctx.fullPath = node.fullPath
-		// 函数退出时执行后置处理器
 		if engine.config.AfterHandler != nil {
 			defer engine.config.AfterHandler(ctx)
 		}
-		// 执行处理器
-		for k := range node.handlers {
+
+		for _, handler := range node.handlers {
 			if ctx.broke {
 				break
 			}
-			if err = node.handlers[k](ctx); err != nil {
-				ctx.broke = true
-				ctx.Status = http.StatusInternalServerError
-				ctx.Error = err
-				if engine.config.ErrorHandler != nil {
-					engine.config.ErrorHandler(ctx)
-				} else {
-					ctx.ResponseWriter.WriteHeader(ctx.Status)
-					_, _ = ctx.ResponseWriter.Write(strToBytes(ctx.Error.Error())) //nolint:errcheck
-				}
-				break
+			if err = handler(ctx); err != nil {
+				handleError(ctx, engine, err, http.StatusInternalServerError)
+				return
 			}
 		}
 		return
 	}
+
 	// 处理 405 错误
 	if engine.config.HandleMethodNotAllowed {
 		for _, tree := range engine.trees {
-			// 只在方法不匹配的树中查找
 			if tree.method == method {
 				continue
 			}
-			// 找到了其它方法的路径
-			if node = tree.root.getValue(url, nil, ctx.skippedNodes); node.handlers != nil {
-				// 405 错误
-				ctx.broke = true
-				ctx.Status = http.StatusMethodNotAllowed
-				ctx.Error = errors.New(http.StatusText(http.StatusMethodNotAllowed))
-				if engine.config.ErrorHandler != nil {
-					engine.config.ErrorHandler(ctx)
-				} else {
-					ctx.ResponseWriter.WriteHeader(ctx.Status)
-					_, _ = ctx.ResponseWriter.Write(strToBytes(ctx.Error.Error())) //nolint:errcheck
-				}
+			node = tree.root.getValue(url, nil, ctx.skippedNodes)
+			if node.handlers != nil {
+				handleError(ctx, engine, errors.New(http.StatusText(http.StatusMethodNotAllowed)), http.StatusMethodNotAllowed)
 				return
 			}
 		}
 	}
+
 	// 404 错误
+	handleError(ctx, engine, errors.New(http.StatusText(http.StatusNotFound)), http.StatusNotFound)
+}
+
+// 处理错误并执行错误处理器
+func handleError(ctx *Context, engine *Engine, err error, status int) {
 	ctx.broke = true
-	ctx.Status = http.StatusNotFound
-	ctx.Error = errors.New(http.StatusText(http.StatusNotFound))
+	ctx.Status = status
+	ctx.Error = err
+
 	if engine.config.ErrorHandler != nil {
 		engine.config.ErrorHandler(ctx)
-	} else {
-		ctx.ResponseWriter.WriteHeader(ctx.Status)
-		_, _ = ctx.ResponseWriter.Write(strToBytes(ctx.Error.Error())) //nolint:errcheck
+		return
+	}
+	ctx.ResponseWriter.WriteHeader(ctx.Status)
+	if _, err = ctx.ResponseWriter.Write(strToBytes(ctx.Error.Error())); err != nil {
 	}
 }

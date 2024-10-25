@@ -666,7 +666,7 @@ walk: // Outer loop for walking the tree
 				// Runes are up to 4 byte long,
 				// -4 would definitely be another rune.
 				var off int
-				for maxNPLen := min(npLen, 3); off < maxNPLen; off++ {
+				for maxNPLen := minNumber(npLen, 3); off < maxNPLen; off++ {
 					if i := npLen - off; utf8.RuneStart(oldPath[i]) {
 						// read rune from cached path
 						rv, _ = utf8.DecodeRuneInString(oldPath[i:])

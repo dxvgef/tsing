@@ -97,10 +97,9 @@ func (ctx *Context) AllPathValue() []Param {
 // 初始化查询参数缓存
 func (ctx *Context) initQueryCache() {
 	if ctx.queryCache == nil {
+		ctx.queryCache = url.Values{}
 		if ctx.Request != nil {
 			ctx.queryCache = ctx.Request.URL.Query()
-		} else {
-			ctx.queryCache = url.Values{}
 		}
 	}
 }
@@ -109,13 +108,12 @@ func (ctx *Context) initQueryCache() {
 func (ctx *Context) InitFormCache() error {
 	if ctx.formCache == nil {
 		ctx.formCache = make(url.Values)
-		req := ctx.Request
-		if err := req.ParseMultipartForm(ctx.engine.config.MaxMultipartMemory); err != nil {
-			if !errors.Is(err, http.ErrNotMultipart) {
-				return err
-			}
+
+		if err := ctx.Request.ParseMultipartForm(ctx.engine.config.MaxMultipartMemory); err != nil && !errors.Is(err, http.ErrNotMultipart) {
+			return err
 		}
-		ctx.formCache = req.PostForm
+
+		ctx.formCache = ctx.Request.PostForm
 	}
 	return nil
 }
@@ -168,11 +166,11 @@ func (ctx *Context) FormParam(key string) (string, bool) {
 	if err := ctx.InitFormCache(); err != nil {
 		return "", false
 	}
-	if values, exist := ctx.formCache[key]; !exist {
+	values, exist := ctx.formCache[key]
+	if !exist {
 		return "", false
-	} else { //nolint:golint
-		return values[0], true
 	}
+	return values[0], true
 }
 
 // FormValues 获取某个Form参数的所有值
@@ -188,11 +186,11 @@ func (ctx *Context) FormParams(key string) ([]string, bool) {
 	if err := ctx.InitFormCache(); err != nil {
 		return nil, false
 	}
-	if values, exist := ctx.formCache[key]; !exist {
+	values, exist := ctx.formCache[key]
+	if !exist {
 		return nil, false
-	} else { //nolint:golint
-		return values, true
 	}
+	return values, true
 }
 
 // AllFormValue 获取所有Form参数
@@ -210,13 +208,16 @@ func (ctx *Context) FormFile(name string) (*multipart.FileHeader, error) {
 			return nil, err
 		}
 	}
+
 	f, fileHeader, err := ctx.Request.FormFile(name)
 	if err != nil {
 		return nil, err
 	}
-	_ = f.Close() //nolint:errcheck
+	defer func() {
+		err = f.Close() // 确保在函数结束时关闭文件
+	}()
 
-	return fileHeader, err
+	return fileHeader, nil
 }
 
 // FormFiles 根据参数名获取上传的所有文件
@@ -226,11 +227,11 @@ func (ctx *Context) FormFiles(name string) ([]*multipart.FileHeader, error) {
 			return nil, err
 		}
 	}
-	if fileHeaders, exist := ctx.Request.MultipartForm.File[name]; !exist {
+	fileHeaders, exist := ctx.Request.MultipartForm.File[name]
+	if !exist {
 		return nil, nil
-	} else { //nolint:golint
-		return fileHeaders, nil
 	}
+	return fileHeaders, nil
 }
 
 // SaveFile 保存上传的文件到本地路径
@@ -240,7 +241,7 @@ func (ctx *Context) SaveFile(fileHeader *multipart.FileHeader, savePath string, 
 		return err
 	}
 	defer func() {
-		_ = f.Close() //nolint:errcheck
+		err = f.Close()
 	}()
 
 	if err = os.MkdirAll(filepath.Dir(savePath), perm); err != nil {
@@ -253,7 +254,7 @@ func (ctx *Context) SaveFile(fileHeader *multipart.FileHeader, savePath string, 
 		return err
 	}
 	defer func() {
-		_ = out.Close() //nolint:errcheck
+		err = out.Close()
 	}()
 
 	_, err = io.Copy(out, f)
