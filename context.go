@@ -202,22 +202,13 @@ func (ctx *Context) AllFormValue() url.Values {
 }
 
 // FormFile 根据参数名获取上传的第一个文件
-func (ctx *Context) FormFile(name string) (*multipart.FileHeader, error) {
+func (ctx *Context) FormFile(name string) (multipart.File, *multipart.FileHeader, error) {
 	if ctx.Request.MultipartForm == nil {
 		if err := ctx.Request.ParseMultipartForm(ctx.engine.config.MaxMultipartMemory); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
-
-	f, fileHeader, err := ctx.Request.FormFile(name)
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		err = f.Close() // 确保在函数结束时关闭文件
-	}()
-
-	return fileHeader, nil
+	return ctx.Request.FormFile(name)
 }
 
 // FormFiles 根据参数名获取上传的所有文件
@@ -266,7 +257,7 @@ func (ctx *Context) ServeFile(filePath string) {
 	http.ServeFile(ctx.ResponseWriter, ctx.Request, filePath)
 }
 
-// FileFromFS writes the specified file from http.FileSystem into the body stream in an efficient way.
+// FileFromFS 发布本地目录为静态文件目录
 func (ctx *Context) FileFromFS(filepath string, fs http.FileSystem) {
 	defer func(old string) {
 		ctx.Request.URL.Path = old
