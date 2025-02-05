@@ -16,11 +16,8 @@ type Router interface {
 }
 
 // Routes 定义所有路由器接口
-//
-//nolint:interfacebloat
 type Routes interface {
 	Use(handlers ...Handler)
-	After(handlers ...Handler)
 	Handle(method string, path string, handlers ...Handler)
 	GET(path string, handlers ...Handler)
 	POST(path string, handlers ...Handler)

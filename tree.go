@@ -116,6 +116,8 @@ func (n *Node) addRoute(path string, handlers HandlersChain) {
 	}
 
 	parentFullPathIndex := 0
+
+walk:
 	for {
 		// 找出最长的公共前缀，公共前缀不包含':'或'*',因为现有的key不能包含这些字符
 		i := longestCommonPrefix(path, n.path)
@@ -149,7 +151,7 @@ func (n *Node) addRoute(path string, handlers HandlersChain) {
 				parentFullPathIndex += len(n.path)
 				n = n.children[0]
 				n.priority++
-				continue
+				continue walk
 			}
 
 			// 检查是否存在具有下一个路径字节的子字节
@@ -158,7 +160,7 @@ func (n *Node) addRoute(path string, handlers HandlersChain) {
 					parentFullPathIndex += len(n.path)
 					i = n.incrementChildPrio(i)
 					n = n.children[i]
-					continue
+					continue walk
 				}
 			}
 
@@ -177,7 +179,7 @@ func (n *Node) addRoute(path string, handlers HandlersChain) {
 				if len(path) >= len(n.path) && n.path == path[:len(n.path)] &&
 					n.nType != wildcardNode &&
 					(len(n.path) >= len(path) || path[len(n.path)] == '/') {
-					continue
+					continue walk
 				}
 
 				pathSeg := path
