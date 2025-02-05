@@ -105,10 +105,8 @@ func (engine *Engine) addRoute(method, path string, handlers HandlersChain) {
 }
 
 func (engine *Engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	ctx, ok := engine.contextPool.Get().(*Context)
-	if !ok {
-		panic("context pool is not set")
-	}
+	ctx, _ := engine.contextPool.Get().(*Context)
+
 	ctx.Request = req
 	ctx.ResponseWriter = w
 	ctx.reset()

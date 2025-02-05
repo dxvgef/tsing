@@ -96,25 +96,27 @@ func (ctx *Context) AllPathValue() []Param {
 
 // 初始化查询参数缓存
 func (ctx *Context) initQueryCache() {
-	if ctx.queryCache == nil {
-		ctx.queryCache = url.Values{}
-		if ctx.Request != nil {
-			ctx.queryCache = ctx.Request.URL.Query()
-		}
+	if ctx.queryCache != nil {
+		return
+	}
+	ctx.queryCache = url.Values{}
+	if ctx.Request != nil {
+		ctx.queryCache = ctx.Request.URL.Query()
 	}
 }
 
 // InitFormCache 初始化表单参数缓存
 func (ctx *Context) InitFormCache() error {
-	if ctx.formCache == nil {
-		ctx.formCache = make(url.Values)
-
-		if err := ctx.Request.ParseMultipartForm(ctx.engine.config.MaxMultipartMemory); err != nil && !errors.Is(err, http.ErrNotMultipart) {
-			return err
-		}
-
-		ctx.formCache = ctx.Request.PostForm
+	if ctx.formCache != nil {
+		return nil
 	}
+	ctx.formCache = make(url.Values)
+
+	if err := ctx.Request.ParseMultipartForm(ctx.engine.config.MaxMultipartMemory); err != nil && !errors.Is(err, http.ErrNotMultipart) {
+		return err
+	}
+
+	ctx.formCache = ctx.Request.PostForm
 	return nil
 }
 
@@ -231,25 +233,18 @@ func (ctx *Context) SaveFile(fileHeader *multipart.FileHeader, savePath string, 
 	if err != nil {
 		return err
 	}
-	defer func() {
-		err = f.Close()
-	}()
 
 	if err = os.MkdirAll(filepath.Dir(savePath), perm); err != nil {
-		return err
+		return errors.Join(err, f.Close())
 	}
 
 	var out *os.File
 	out, err = os.Create(savePath) //nolint:gosec
 	if err != nil {
-		return err
+		return errors.Join(err, f.Close())
 	}
-	defer func() {
-		err = out.Close()
-	}()
-
 	_, err = io.Copy(out, f)
-	return err
+	return errors.Join(err, out.Close(), f.Close())
 }
 
 // ServeFile 将服务端指定路径的文件写入到客户端流
