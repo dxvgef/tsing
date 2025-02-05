@@ -293,18 +293,19 @@ func (ctx *Context) String(status int, data string, charset ...string) (err erro
 
 // JSON 输出JSON
 func (ctx *Context) JSON(status int, data any, charset ...string) error {
-	buf, err := json.Marshal(&data)
+	buf, err := json.Marshal(data)
 	if err != nil {
 		return err
 	}
-	if len(charset) == 0 {
-		ctx.ResponseWriter.Header().Set("Content-Type", "application/json; charset=utf-8")
-	} else {
-		ctx.ResponseWriter.Header().Set("Content-Type", "application/json; charset="+charset[0])
+
+	contentType := "application/json; charset=utf-8"
+	if len(charset) > 0 {
+		contentType = "application/json; charset=" + charset[0]
 	}
+	ctx.ResponseWriter.Header().Set("Content-Type", contentType)
 	ctx.ResponseWriter.WriteHeader(status)
 	_, err = ctx.ResponseWriter.Write(buf)
-	return err
+	return err //nolint:wrapcheck
 }
 
 // NoContent 输出204状态码

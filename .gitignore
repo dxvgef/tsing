@@ -6,3 +6,4 @@ Gopkg.*
 go.sum
 .golangci.yaml
 .DS_Store
+commit-prompt.txt

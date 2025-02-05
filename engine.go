@@ -105,7 +105,10 @@ func (engine *Engine) addRoute(method, path string, handlers HandlersChain) {
 }
 
 func (engine *Engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	ctx := engine.contextPool.Get().(*Context)
+	ctx, ok := engine.contextPool.Get().(*Context)
+	if !ok {
+		panic("context pool is not set")
+	}
 	ctx.Request = req
 	ctx.ResponseWriter = w
 	ctx.reset()
@@ -120,7 +123,7 @@ func (engine *Engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 					engine.config.ErrorHandler(ctx)
 				} else {
 					ctx.ResponseWriter.WriteHeader(ctx.Status)
-					_, _ = ctx.ResponseWriter.Write(strToBytes(ctx.Error.Error())) //nolint:errcheck
+					// _, _ = ctx.ResponseWriter.Write(strToBytes(ctx.Error.Error())) //nolint:errcheck
 				}
 			}
 		}()
@@ -205,6 +208,6 @@ func handleError(ctx *Context, engine *Engine, err error, status int) {
 		return
 	}
 	ctx.ResponseWriter.WriteHeader(ctx.Status)
-	if _, err = ctx.ResponseWriter.Write(strToBytes(ctx.Error.Error())); err != nil {
-	}
+	// if _, err = ctx.ResponseWriter.Write(strToBytes(ctx.Error.Error())); err != nil {
+	// }
 }

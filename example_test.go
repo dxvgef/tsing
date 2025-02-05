@@ -16,9 +16,6 @@ func errorHandler(ctx *Context) {
 	log.Println("记录错误日志", ctx.Status, ctx.Error)
 	// 输出错误信息到客户端
 	ctx.ResponseWriter.WriteHeader(ctx.Status)
-	if ctx.Error != nil {
-		_, _ = ctx.ResponseWriter.Write([]byte(ctx.Error.Error()))
-	}
 }
 
 // 后置回调处理器
@@ -30,12 +27,13 @@ func afterHandler(ctx *Context) {
 func TestEcho(t *testing.T) {
 	app := New()
 	app.GET("/", func(ctx *Context) error {
+		t.Log(ctx.Request.RequestURI)
 		t.Log("Hello Tsing")
 		return nil
 	})
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	r, err := http.NewRequestWithContext(ctx, "GET", "/", nil)
+	r, err := http.NewRequestWithContext(ctx, http.MethodGet, "/", nil)
 	if err != nil {
 		t.Error(err)
 		return
@@ -50,7 +48,7 @@ func TestStatusCode(t *testing.T) {
 	})
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, "GET", "/", nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "/", nil)
 	if err != nil {
 		t.Error(err)
 		return
@@ -67,24 +65,24 @@ func TestHandlers(t *testing.T) {
 		AfterHandler: afterHandler,
 	})
 	app.Use(func(ctx *Context) error {
-		t.Log("1 执行了全局中间件")
+		t.Log(ctx.Request.RequestURI, "1 执行了全局中间件")
 		return nil
 	})
 	group := app.Group("/group", func(ctx *Context) error {
-		t.Log("2 执行了 /group")
+		t.Log(ctx.Request.RequestURI, "2 执行了 /group")
 		return nil
 	})
 	group.Use(func(ctx *Context) error {
-		t.Log("3 执行了路由组 /group 中间件")
+		t.Log(ctx.Request.RequestURI, "3 执行了路由组 /group 中间件")
 		return nil
 	})
 	group.GET("/object", func(ctx *Context) error {
-		t.Log("4 执行了 /group/object")
+		t.Log(ctx.Request.RequestURI, "4 执行了 /group/object")
 		return nil
 	})
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	r, err := http.NewRequestWithContext(ctx, "GET", "/group2/object", nil)
+	r, err := http.NewRequestWithContext(ctx, http.MethodGet, "/group2/object", nil)
 	if err != nil {
 		t.Error(err)
 		return
@@ -102,7 +100,7 @@ func TestPathValue(t *testing.T) {
 	})
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	r, err := http.NewRequestWithContext(ctx, "GET", "/haha/123", nil)
+	r, err := http.NewRequestWithContext(ctx, http.MethodGet, "/haha/123", nil)
 	if err != nil {
 		t.Error(err)
 		return
@@ -123,7 +121,7 @@ func TestContextValue(t *testing.T) {
 	})
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	r, err := http.NewRequestWithContext(ctx, "GET", "/", nil)
+	r, err := http.NewRequestWithContext(ctx, http.MethodGet, "/", nil)
 	if err != nil {
 		t.Error(err)
 		return
@@ -140,12 +138,12 @@ func TestAbort(t *testing.T) {
 		ctx.Abort()
 		return nil
 	}, func(ctx *Context) error {
-		t.Error("中止失败")
+		t.Error(ctx.Request.RequestURI, "中止失败")
 		return nil
 	})
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	r, err := http.NewRequestWithContext(ctx, "GET", "/group/object", nil)
+	r, err := http.NewRequestWithContext(ctx, http.MethodGet, "/group/object", nil)
 	if err != nil {
 		t.Error(err)
 		return
@@ -162,7 +160,7 @@ func TestQueryParams(t *testing.T) {
 	})
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	r, err := http.NewRequestWithContext(ctx, "GET", "/?id=123", nil)
+	r, err := http.NewRequestWithContext(ctx, http.MethodGet, "/?id=123", nil)
 	if err != nil {
 		t.Error(err)
 		return
@@ -180,7 +178,7 @@ func TestFormValue(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	r, err := http.NewRequestWithContext(ctx, "POST", "/", strings.NewReader("test=ok"))
+	r, err := http.NewRequestWithContext(ctx, http.MethodPost, "/", strings.NewReader("test=ok"))
 	if err != nil {
 		t.Error(err)
 		return
@@ -196,7 +194,7 @@ func TestNotFoundError(t *testing.T) {
 	})
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	r, err := http.NewRequestWithContext(ctx, "GET", "/404", nil)
+	r, err := http.NewRequestWithContext(ctx, http.MethodGet, "/404", nil)
 	if err != nil {
 		t.Error(err)
 		return
@@ -211,11 +209,12 @@ func TestMethodNotAllowedError(t *testing.T) {
 		ErrorHandler:           errorHandler,
 	})
 	app.POST("/", func(ctx *Context) error {
+		t.Log(ctx.Request.RequestURI)
 		return nil
 	})
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	r, err := http.NewRequestWithContext(ctx, "GET", "/", nil)
+	r, err := http.NewRequestWithContext(ctx, http.MethodGet, "/", nil)
 	if err != nil {
 		t.Error(err)
 		return
@@ -230,11 +229,12 @@ func TestPanicError(t *testing.T) {
 		ErrorHandler: errorHandler,
 	})
 	app.GET("/", func(ctx *Context) error {
+		t.Log(ctx.Request.RequestURI)
 		panic("panic消息")
 	})
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	r, err := http.NewRequestWithContext(ctx, "GET", "/", nil)
+	r, err := http.NewRequestWithContext(ctx, http.MethodGet, "/", nil)
 	if err != nil {
 		t.Error(err)
 		return
@@ -249,11 +249,12 @@ func TestCORS(t *testing.T) {
 		HandleMethodNotAllowed: true,         // 错误处理器中需要判断 405 状态码
 	})
 	app.GET("/", func(ctx *Context) error {
+		t.Log(ctx.Request.RequestURI)
 		return nil
 	})
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	r, err := http.NewRequestWithContext(ctx, "OPTIONS", "/", nil)
+	r, err := http.NewRequestWithContext(ctx, http.MethodOptions, "/", nil)
 	if err != nil {
 		t.Error(err)
 		return

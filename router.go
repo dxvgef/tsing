@@ -12,23 +12,24 @@ import (
 // Router 路由器接口，包括单路由和路由组
 type Router interface {
 	Routes
-	Group(string, ...Handler) *RouterGroup
+	Group(path string, handlers ...Handler) *RouterGroup
 }
 
 // Routes 定义所有路由器接口
+//
+//nolint:interfacebloat
 type Routes interface {
-	Use(...Handler)
-
-	After(...Handler)
-	Handle(string, string, ...Handler)
-	GET(string, ...Handler)
-	POST(string, ...Handler)
-	DELETE(string, ...Handler)
-	PATCH(string, ...Handler)
-	PUT(string, ...Handler)
-	OPTIONS(string, ...Handler)
-	HEAD(string, ...Handler)
-	Match([]string, string, ...Handler)
+	Use(handlers ...Handler)
+	After(handlers ...Handler)
+	Handle(method string, path string, handlers ...Handler)
+	GET(path string, handlers ...Handler)
+	POST(path string, handlers ...Handler)
+	DELETE(path string, handlers ...Handler)
+	PATCH(path string, handlers ...Handler)
+	PUT(path string, handlers ...Handler)
+	OPTIONS(path string, handlers ...Handler)
+	HEAD(path string, handlers ...Handler)
+	Match(methods []string, path string, handlers ...Handler)
 }
 
 // RouterGroup 路由组
