@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // Context is the most important part of gin. It allows us to pass variables between middleware,
@@ -324,4 +325,48 @@ func (ctx *Context) ParseJSON(obj any) error {
 		return err
 	}
 	return json.Unmarshal(body, obj)
+}
+
+// SetCookie 写入cookie
+func (ctx *Context) SetCookie(cookie *http.Cookie) error {
+	if cookie == nil {
+		return errors.New("cookie is nil")
+	}
+	http.SetCookie(ctx.ResponseWriter, cookie)
+	return nil
+}
+
+// GetCookie 读取cookie
+func (ctx *Context) GetCookie(key string) (string, error) {
+	cookie, err := ctx.Request.Cookie(key)
+	if err != nil {
+		return "", err
+	}
+	if err = cookie.Valid(); err != nil {
+		return "", err
+	}
+	return cookie.Value, nil
+}
+
+// GetRemoteAddr 获取客户端IP
+func (ctx *Context) GetRemoteAddr(r *http.Request) string {
+	ip := r.Header.Get("X-Forwarded-For")
+	if ip != "" {
+		ips := strings.Split(ip, ",")
+		if len(ips) > 0 {
+			return strings.TrimSpace(ips[0])
+		}
+	}
+
+	ip = r.Header.Get("X-Real-IP")
+	if ip != "" {
+		return ip
+	}
+
+	ip = r.RemoteAddr
+	if strings.Contains(ip, ":") {
+		ip = strings.Split(ip, ":")[0]
+	}
+
+	return ip
 }
