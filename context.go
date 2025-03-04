@@ -349,8 +349,8 @@ func (ctx *Context) GetCookie(key string) (string, error) {
 }
 
 // GetRemoteAddr 获取客户端IP
-func (ctx *Context) GetRemoteAddr(r *http.Request) string {
-	ip := r.Header.Get("X-Forwarded-For")
+func (ctx *Context) GetRemoteAddr() string {
+	ip := ctx.Request.Header.Get("X-Forwarded-For")
 	if ip != "" {
 		ips := strings.Split(ip, ",")
 		if len(ips) > 0 {
@@ -358,12 +358,12 @@ func (ctx *Context) GetRemoteAddr(r *http.Request) string {
 		}
 	}
 
-	ip = r.Header.Get("X-Real-IP")
+	ip = ctx.Request.Header.Get("X-Real-IP")
 	if ip != "" {
 		return ip
 	}
 
-	ip = r.RemoteAddr
+	ip = ctx.Request.RemoteAddr
 	if strings.Contains(ip, ":") {
 		ip = strings.Split(ip, ":")[0]
 	}
